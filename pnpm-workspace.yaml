@@ -1,0 +1,4 @@
+packages:
+  - 'web/admin-ui'
+
+trustPolicy: no-downgrade

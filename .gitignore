@@ -1,0 +1,35 @@
+# Build outputs (root-level binaries only)
+/proxy
+/admin
+dist/
+
+# SQLite database files
+*.db
+*.db-wal
+*.db-shm
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Go toolchain
+vendor/
+
+# Node / Next.js
+web/admin-ui/node_modules/
+web/admin-ui/.next/
+web/admin-ui/out/
+web/admin-ui/package-lock.json
+web/admin-ui/tsconfig.tsbuildinfo
+
+# macOS
+.DS_Store
+
+# Internal design docs (kept locally, not part of the OSS repo)
+/docs/
+
+# Terraform state
+deploy/terraform/*.tfstate
+deploy/terraform/*.tfstate.backup
+deploy/terraform/.terraform/
