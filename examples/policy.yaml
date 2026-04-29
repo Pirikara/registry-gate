@@ -43,3 +43,11 @@ rules:
         - publisher.type
         - publisher.two_factor
       on_unknown: warn
+
+  # ----------------------------------------------------------------- #
+  # 5. Popularity — block packages with very low download counts.
+  #    Useful for preventing typosquatting or obscure packages.
+  # ----------------------------------------------------------------- #
+  # - min_downloads:
+  #     ecosystems: [npm, pypi, rubygems]
+  #     threshold: 1000

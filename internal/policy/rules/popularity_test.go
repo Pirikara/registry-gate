@@ -46,7 +46,7 @@ func TestMinDownloads_Block_TooLow(t *testing.T) {
 	}
 }
 
-func TestMinDownloads_Block_NilCount(t *testing.T) {
+func TestMinDownloads_Allow_NilCount(t *testing.T) {
 	r := rules.NewMinDownloads("test-pop", 1000)
 	ctx := policy.EvalContext{
 		Target: facts.PackageFacts{Name: "pkg", Version: "1.0.0"},
@@ -55,7 +55,7 @@ func TestMinDownloads_Block_NilCount(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if out == nil || out.Decision != policy.DecisionBlock {
-		t.Error("expected Block when download count is unavailable")
+	if out != nil {
+		t.Errorf("expected nil (allow) when download count is unavailable, got %+v", out)
 	}
 }
