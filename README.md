@@ -1,5 +1,7 @@
 # Registory Gate
 
+[![CI](https://github.com/pirikara/registory-gate/actions/workflows/ci.yml/badge.svg)](https://github.com/pirikara/registory-gate/actions/workflows/ci.yml)
+
 Self-hosted registry proxy that enforces organizational package policies before download — no malware DB required.
 
 Instead of signature scanning, Registory Gate applies **rule-based policies** defined in a YAML file:
@@ -21,7 +23,7 @@ developer  →  Registory Gate (proxy)  →  upstream registry
                   (YAML rules)
                       │
                allow → 302 to tarball
-               block → 451 Unavailable For Legal Reasons
+               block → 403 Forbidden
 ```
 
 The proxy rewrites metadata responses so package managers resolve tarballs through the proxy. Policy is evaluated at the metadata stage. Blocked packages never reach the client.
@@ -126,7 +128,7 @@ Package references use `ecosystem:name` shorthand. See
 | `trust_downgrade` | Block if watched trust fields regressed vs. other recent versions |
 | `allow` | Explicitly allow listed packages (bypass lower-priority rules) |
 | `deny` | Explicitly block listed packages |
-| `min_downloads` | Block if the package has fewer than `threshold` total downloads |
+| `min_downloads` | Block if the package's download count is below `threshold` (npm: last 30 days via downloads API; RubyGems: lifetime total) |
 
 ### Trust signal availability per ecosystem
 
@@ -172,14 +174,15 @@ A Next.js dashboard is in [`web/admin-ui/`](web/admin-ui/).
 
 ```bash
 # run tests (no Docker required)
-go test ./...
+go test -race ./...
 
 # build binaries
 go build ./cmd/proxy
 go build ./cmd/admin
 ```
 
-Tests use in-memory SQLite — no external services needed.
+Tests use in-memory SQLite and httptest servers — no external services needed.
+CI runs on every push and pull request via GitHub Actions (`.github/workflows/ci.yml`).
 
 ---
 
