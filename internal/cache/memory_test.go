@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pirikara/registory-gate/internal/cache"
+	"github.com/pirikara/registry-gate/internal/cache"
 )
 
 func TestMemoryCache_GetMiss(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/pirikara/registory-gate/internal/facts"
+	"github.com/pirikara/registry-gate/internal/facts"
 )
 
 // Result is the aggregate outcome of evaluating all entries against a package.

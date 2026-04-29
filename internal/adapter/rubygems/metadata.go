@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pirikara/registory-gate/internal/facts"
+	"github.com/pirikara/registry-gate/internal/facts"
 )
 
 // VersionList is the response from GET /api/v1/versions/<name>.json

@@ -25,7 +25,7 @@ resource "aws_elasticache_subnet_group" "this" {
 
 resource "aws_elasticache_replication_group" "this" {
   replication_group_id = var.name
-  description          = "Registory Gate metadata cache"
+  description          = "Registry Gate metadata cache"
   node_type            = var.node_type
   num_cache_clusters   = var.num_nodes
   automatic_failover_enabled = var.num_nodes > 1

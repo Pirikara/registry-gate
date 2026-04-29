@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pirikara/registory-gate/internal/facts"
-	"github.com/pirikara/registory-gate/internal/history"
+	"github.com/pirikara/registry-gate/internal/facts"
+	"github.com/pirikara/registry-gate/internal/history"
 )
 
 func newJSONLogger(buf *bytes.Buffer) *slog.Logger {

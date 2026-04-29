@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pirikara/registory-gate/internal/facts"
-	"github.com/pirikara/registory-gate/internal/policy"
-	"github.com/pirikara/registory-gate/internal/policy/rules"
+	"github.com/pirikara/registry-gate/internal/facts"
+	"github.com/pirikara/registry-gate/internal/policy"
+	"github.com/pirikara/registry-gate/internal/policy/rules"
 )
 
 // buildEngine creates an engine and a helper that injects the given baseline

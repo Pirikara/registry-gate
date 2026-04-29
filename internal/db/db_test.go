@@ -3,7 +3,7 @@ package db_test
 import (
 	"testing"
 
-	"github.com/pirikara/registory-gate/internal/db"
+	"github.com/pirikara/registry-gate/internal/db"
 )
 
 func TestOpen_EmptyDSN_ReturnsNil(t *testing.T) {

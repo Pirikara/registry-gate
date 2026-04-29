@@ -1,7 +1,7 @@
 // Package principal extracts an optional human-readable label identifying the
-// requester. Registory Gate itself does not authenticate clients; deployments
+// requester. Registry Gate itself does not authenticate clients; deployments
 // that want attribution should put oauth2-proxy / Authelia / similar in front
-// of Registory Gate, which will inject a header such as X-Forwarded-User.
+// of Registry Gate, which will inject a header such as X-Forwarded-User.
 package principal
 
 import "net/http"

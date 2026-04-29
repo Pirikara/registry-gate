@@ -1,10 +1,10 @@
-# Registory Gate
+# Registry Gate
 
-[![CI](https://github.com/pirikara/registory-gate/actions/workflows/ci.yml/badge.svg)](https://github.com/pirikara/registory-gate/actions/workflows/ci.yml)
+[![CI](https://github.com/pirikara/registry-gate/actions/workflows/ci.yml/badge.svg)](https://github.com/pirikara/registry-gate/actions/workflows/ci.yml)
 
 Self-hosted registry proxy that enforces organizational package policies before download — no malware DB required.
 
-Instead of signature scanning, Registory Gate applies **rule-based policies** defined in a YAML file:
+Instead of signature scanning, Registry Gate applies **rule-based policies** defined in a YAML file:
 
 - **Cooldown** — block packages published less than N days ago
 - **Trust downgrade** — block versions whose provenance or publisher trust signals regressed vs. the version baseline
@@ -17,7 +17,7 @@ Supported ecosystems: npm, PyPI, RubyGems, Docker, Homebrew.
 ## How it works
 
 ```
-developer  →  Registory Gate (proxy)  →  upstream registry
+developer  →  Registry Gate (proxy)  →  upstream registry
                       │
                   policy check
                   (YAML rules)
@@ -83,7 +83,7 @@ All configuration is via environment variables.
 
 ### Attribution (optional)
 
-Registory Gate has no built-in authentication. If you run it behind a reverse proxy that injects `X-Forwarded-User` (e.g. oauth2-proxy, Authelia), the value is captured as `principal_label` in the download log.
+Registry Gate has no built-in authentication. If you run it behind a reverse proxy that injects `X-Forwarded-User` (e.g. oauth2-proxy, Authelia), the value is captured as `principal_label` in the download log.
 
 ---
 

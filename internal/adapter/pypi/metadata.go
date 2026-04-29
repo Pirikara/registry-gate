@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pirikara/registory-gate/internal/facts"
+	"github.com/pirikara/registry-gate/internal/facts"
 )
 
 // JSONAPIResponse is the top-level object from GET https://pypi.org/pypi/<pkg>/json

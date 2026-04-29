@@ -3,7 +3,7 @@ package rules
 import (
 	"fmt"
 
-	"github.com/pirikara/registory-gate/internal/policy"
+	"github.com/pirikara/registry-gate/internal/policy"
 )
 
 // MinDownloadsRule blocks packages with fewer downloads than the threshold

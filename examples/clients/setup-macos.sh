@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Registory Gate — macOS client setup script.
+# Registry Gate — macOS client setup script.
 #
 # Designed to be run from MDM (Jamf, Intune for macOS, Workspace ONE) as root.
 # Configures npm / pip / RubyGems / Docker Desktop to use the proxy as the
@@ -27,8 +27,8 @@ fi
 
 URL="${REGISTORY_GATE_URL%/}"
 
-log()   { echo "[registory-gate] $*"; }
-fatal() { echo "[registory-gate] FATAL: $*" >&2; exit 1; }
+log()   { echo "[registry-gate] $*"; }
+fatal() { echo "[registry-gate] FATAL: $*" >&2; exit 1; }
 
 # npm — system-wide npmrc
 log "writing /etc/npmrc"

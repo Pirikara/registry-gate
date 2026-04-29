@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/pirikara/registory-gate/internal/policy"
+	"github.com/pirikara/registry-gate/internal/policy"
 )
 
 // CooldownRule blocks packages that were published less than MinAgeDays ago.

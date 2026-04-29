@@ -1,6 +1,6 @@
 # Client setup scripts
 
-These scripts configure a workstation to use Registory Gate as the default
+These scripts configure a workstation to use Registry Gate as the default
 registry for npm / pip / RubyGems / Docker. They are designed to be deployed
 via MDM (Jamf, Intune, Workspace ONE) or configuration management (Ansible).
 
@@ -29,7 +29,7 @@ That's it. The scripts are intentionally narrow.
 - **CA certificate trust.** If the proxy is served over HTTPS with an
   internal CA, distribute that CA via your existing infrastructure — every
   MDM ships a Trusted Root / Certificate profile feature that handles this
-  generically. It's not specific to Registory Gate.
+  generically. It's not specific to Registry Gate.
 - **Hard enforcement against user override.** `~/.npmrc` always wins over
   `/etc/npmrc`; locking the system file down creates false confidence. If
   you need to *force* traffic through the proxy, block the public registries
@@ -76,7 +76,7 @@ Use Devices → macOS → Shell scripts. Wrap the script to inject the env var:
 ```bash
 #!/usr/bin/env bash
 export REGISTORY_GATE_URL="https://rg.corp.example.com"
-exec /Library/Application\ Support/registory-gate/setup-macos.sh
+exec /Library/Application\ Support/registry-gate/setup-macos.sh
 ```
 
 ### Ansible (Linux)
@@ -87,9 +87,9 @@ exec /Library/Application\ Support/registory-gate/setup-macos.sh
   tasks:
     - copy:
         src: ../examples/clients/setup-linux.sh
-        dest: /usr/local/sbin/registory-gate-setup
+        dest: /usr/local/sbin/registry-gate-setup
         mode: '0755'
-    - command: /usr/local/sbin/registory-gate-setup
+    - command: /usr/local/sbin/registry-gate-setup
       environment:
         REGISTORY_GATE_URL: https://rg.corp.example.com
 ```

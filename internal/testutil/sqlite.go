@@ -6,7 +6,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/pirikara/registory-gate/internal/db"
+	"github.com/pirikara/registry-gate/internal/db"
 )
 
 // OpenSQLite opens an in-memory SQLite database and runs migrations.

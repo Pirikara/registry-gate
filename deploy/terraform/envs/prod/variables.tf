@@ -36,7 +36,7 @@ variable "acm_certificate_arn" {
 }
 
 variable "hosted_zone_name" {
-  description = "Route 53 hosted zone name, e.g. registory-gate.example.com"
+  description = "Route 53 hosted zone name, e.g. registry-gate.example.com"
   type        = string
 }
 

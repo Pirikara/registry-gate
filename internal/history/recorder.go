@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/pirikara/registory-gate/internal/facts"
+	"github.com/pirikara/registry-gate/internal/facts"
 )
 
 // Record represents a single download event.

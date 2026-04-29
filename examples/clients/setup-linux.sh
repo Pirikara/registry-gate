@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Registory Gate — Linux client setup script.
+# Registry Gate — Linux client setup script.
 #
 # Designed to be run from configuration management (Ansible, Chef, Puppet,
 # Workspace ONE Linux) as root.
@@ -26,8 +26,8 @@ fi
 
 URL="${REGISTORY_GATE_URL%/}"
 
-log()   { echo "[registory-gate] $*"; }
-fatal() { echo "[registory-gate] FATAL: $*" >&2; exit 1; }
+log()   { echo "[registry-gate] $*"; }
+fatal() { echo "[registry-gate] FATAL: $*" >&2; exit 1; }
 
 log "writing /etc/npmrc"
 cat > /etc/npmrc <<EOF

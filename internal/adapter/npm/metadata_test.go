@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pirikara/registory-gate/internal/adapter/npm"
-	"github.com/pirikara/registory-gate/internal/facts"
+	"github.com/pirikara/registry-gate/internal/adapter/npm"
+	"github.com/pirikara/registry-gate/internal/facts"
 )
 
 func sampleMeta(provenanceBuilderID string) *npm.RegistryMetadata {

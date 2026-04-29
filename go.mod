@@ -1,4 +1,4 @@
-module github.com/pirikara/registory-gate
+module github.com/pirikara/registry-gate
 
 go 1.26.2
 

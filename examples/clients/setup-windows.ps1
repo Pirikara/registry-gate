@@ -1,4 +1,4 @@
-# Registory Gate — Windows client setup script.
+# Registry Gate — Windows client setup script.
 #
 # Designed to be run from Intune (Windows PowerShell scripts feature) as
 # SYSTEM / Administrator. Configures npm, pip, RubyGems, and Docker Desktop
@@ -28,7 +28,7 @@ if (-not ([Security.Principal.WindowsPrincipal] `
 
 $Url = $ProxyURL.TrimEnd('/')
 
-function Log([string] $msg) { Write-Host "[registory-gate] $msg" }
+function Log([string] $msg) { Write-Host "[registry-gate] $msg" }
 
 # npm — global npmrc at %ProgramData%; surfaced via NPM_CONFIG_GLOBALCONFIG.
 $NpmRc = 'C:\ProgramData\npm\etc\npmrc'

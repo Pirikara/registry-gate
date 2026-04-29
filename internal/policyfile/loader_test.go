@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/pirikara/registory-gate/internal/policyfile"
+	"github.com/pirikara/registry-gate/internal/policyfile"
 )
 
 func writeTemp(t *testing.T, contents string) string {

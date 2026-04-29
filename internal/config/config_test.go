@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pirikara/registory-gate/internal/config"
+	"github.com/pirikara/registry-gate/internal/config"
 )
 
 func TestLoad_Defaults(t *testing.T) {

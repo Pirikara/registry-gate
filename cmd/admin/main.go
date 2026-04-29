@@ -15,12 +15,12 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/pirikara/registory-gate/internal/config"
-	"github.com/pirikara/registory-gate/internal/db"
-	"github.com/pirikara/registory-gate/internal/facts"
-	"github.com/pirikara/registory-gate/internal/history"
-	"github.com/pirikara/registory-gate/internal/policy"
-	"github.com/pirikara/registory-gate/internal/policyfile"
+	"github.com/pirikara/registry-gate/internal/config"
+	"github.com/pirikara/registry-gate/internal/db"
+	"github.com/pirikara/registry-gate/internal/facts"
+	"github.com/pirikara/registry-gate/internal/history"
+	"github.com/pirikara/registry-gate/internal/policy"
+	"github.com/pirikara/registry-gate/internal/policyfile"
 )
 
 func main() {

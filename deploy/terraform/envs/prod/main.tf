@@ -7,11 +7,11 @@ terraform {
     }
   }
   backend "s3" {
-    bucket         = "registory-gate-tfstate"
+    bucket         = "registry-gate-tfstate"
     key            = "prod/terraform.tfstate"
     region         = "ap-northeast-1"
     encrypt        = true
-    dynamodb_table = "registory-gate-tfstate-lock"
+    dynamodb_table = "registry-gate-tfstate-lock"
   }
 }
 
@@ -19,7 +19,7 @@ provider "aws" {
   region = var.aws_region
   default_tags {
     tags = {
-      Project     = "registory-gate"
+      Project     = "registry-gate"
       Environment = "prod"
       ManagedBy   = "terraform"
     }
@@ -33,7 +33,7 @@ module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "~> 5.0"
 
-  name = "registory-gate-${var.env}"
+  name = "registry-gate-${var.env}"
   cidr = var.vpc_cidr
 
   azs              = slice(data.aws_availability_zones.available.names, 0, 2)
@@ -60,7 +60,7 @@ module "ecr" {
   source = "../../modules/ecr"
 
   images = ["proxy", "admin"]
-  prefix = "registory-gate"
+  prefix = "registry-gate"
 }
 
 # ------------------------------------------------------------------ #
@@ -69,7 +69,7 @@ module "ecr" {
 module "alb" {
   source = "../../modules/alb"
 
-  name            = "registory-gate-${var.env}"
+  name            = "registry-gate-${var.env}"
   vpc_id          = module.vpc.vpc_id
   public_subnets  = module.vpc.public_subnets
   certificate_arn = var.acm_certificate_arn
@@ -80,7 +80,7 @@ module "alb" {
 # WAF (attach to ALB)
 # ------------------------------------------------------------------ #
 resource "aws_wafv2_web_acl" "this" {
-  name  = "registory-gate-${var.env}"
+  name  = "registry-gate-${var.env}"
   scope = "REGIONAL"
 
   default_action {
@@ -125,7 +125,7 @@ resource "aws_wafv2_web_acl" "this" {
 
   visibility_config {
     cloudwatch_metrics_enabled = true
-    metric_name                = "registory-gate-waf"
+    metric_name                = "registry-gate-waf"
     sampled_requests_enabled   = true
   }
 }
@@ -151,11 +151,11 @@ resource "aws_wafv2_web_acl_association" "alb" {
 module "rds" {
   source = "../../modules/rds"
 
-  name             = "registory-gate-${var.env}"
+  name             = "registry-gate-${var.env}"
   vpc_id           = module.vpc.vpc_id
   subnet_group     = module.vpc.database_subnet_group_name
   allowed_sg_ids   = [module.ecs.security_group_id]
-  db_name          = "registory_gate"
+  db_name          = "registry_gate"
   master_username  = "rg_admin"
   master_password  = var.db_master_password  # injected via Secrets Manager in prod
   min_acu          = 0.5
@@ -168,7 +168,7 @@ module "rds" {
 module "redis" {
   source = "../../modules/redis"
 
-  name           = "registory-gate-${var.env}"
+  name           = "registry-gate-${var.env}"
   vpc_id         = module.vpc.vpc_id
   subnet_ids     = module.vpc.private_subnets
   allowed_sg_ids = [module.ecs.security_group_id]
@@ -182,7 +182,7 @@ module "redis" {
 module "ecs" {
   source = "../../modules/ecs"
 
-  cluster_name    = "registory-gate-${var.env}"
+  cluster_name    = "registry-gate-${var.env}"
   vpc_id          = module.vpc.vpc_id
   private_subnets = module.vpc.private_subnets
 
@@ -202,7 +202,7 @@ module "ecs" {
 # CloudWatch Log Group
 # ------------------------------------------------------------------ #
 resource "aws_cloudwatch_log_group" "ecs" {
-  name              = "/ecs/registory-gate/${var.env}"
+  name              = "/ecs/registry-gate/${var.env}"
   retention_in_days = 90
 }
 

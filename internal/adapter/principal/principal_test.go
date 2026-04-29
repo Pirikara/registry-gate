@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/pirikara/registory-gate/internal/adapter/principal"
+	"github.com/pirikara/registry-gate/internal/adapter/principal"
 )
 
 func TestLabel_NoHeaders(t *testing.T) {

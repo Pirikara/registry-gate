@@ -12,11 +12,11 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/pirikara/registory-gate/internal/adapter/principal"
-	"github.com/pirikara/registory-gate/internal/cache"
-	"github.com/pirikara/registory-gate/internal/facts"
-	"github.com/pirikara/registory-gate/internal/history"
-	"github.com/pirikara/registory-gate/internal/policy"
+	"github.com/pirikara/registry-gate/internal/adapter/principal"
+	"github.com/pirikara/registry-gate/internal/cache"
+	"github.com/pirikara/registry-gate/internal/facts"
+	"github.com/pirikara/registry-gate/internal/history"
+	"github.com/pirikara/registry-gate/internal/policy"
 )
 
 const (
@@ -171,8 +171,8 @@ func (a *Adapter) handleGemDownload(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	if result.Decision == policy.DecisionBlock {
-		w.Header().Set("X-RegistoryGate-Block-Reason", "policy")
-		w.Header().Set("X-RegistoryGate-Block-Detail", blockReason)
+		w.Header().Set("X-RegistryGate-Block-Reason", "policy")
+		w.Header().Set("X-RegistryGate-Block-Detail", blockReason)
 		http.Error(w, fmt.Sprintf("403 Forbidden: %s", blockReason), http.StatusForbidden)
 		return
 	}

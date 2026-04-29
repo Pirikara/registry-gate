@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pirikara/registory-gate/internal/facts"
-	"github.com/pirikara/registory-gate/internal/policy"
+	"github.com/pirikara/registry-gate/internal/facts"
+	"github.com/pirikara/registry-gate/internal/policy"
 )
 
 // TrustDowngradeWatch enumerates the signals that can be watched.

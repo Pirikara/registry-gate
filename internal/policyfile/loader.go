@@ -11,9 +11,9 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/pirikara/registory-gate/internal/facts"
-	"github.com/pirikara/registory-gate/internal/policy"
-	"github.com/pirikara/registory-gate/internal/policy/rules"
+	"github.com/pirikara/registry-gate/internal/facts"
+	"github.com/pirikara/registry-gate/internal/policy"
+	"github.com/pirikara/registry-gate/internal/policy/rules"
 )
 
 // Loaded holds the parsed policy along with its source metadata.

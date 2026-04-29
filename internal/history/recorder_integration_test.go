@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pirikara/registory-gate/internal/facts"
-	"github.com/pirikara/registory-gate/internal/history"
-	"github.com/pirikara/registory-gate/internal/testutil"
+	"github.com/pirikara/registry-gate/internal/facts"
+	"github.com/pirikara/registry-gate/internal/history"
+	"github.com/pirikara/registry-gate/internal/testutil"
 )
 
 func TestRecorder_Record_Allowed(t *testing.T) {

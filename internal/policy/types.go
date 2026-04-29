@@ -1,6 +1,6 @@
 package policy
 
-import "github.com/pirikara/registory-gate/internal/facts"
+import "github.com/pirikara/registry-gate/internal/facts"
 
 // Decision is the outcome of policy evaluation.
 type Decision int

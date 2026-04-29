@@ -5,7 +5,7 @@ variable "images" {
 
 variable "prefix" {
   type    = string
-  default = "registory-gate"
+  default = "registry-gate"
 }
 
 resource "aws_ecr_repository" "this" {

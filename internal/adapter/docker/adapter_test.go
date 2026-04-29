@@ -10,12 +10,12 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	dockeradapter "github.com/pirikara/registory-gate/internal/adapter/docker"
-	"github.com/pirikara/registory-gate/internal/cache"
-	"github.com/pirikara/registory-gate/internal/facts"
-	"github.com/pirikara/registory-gate/internal/history"
-	"github.com/pirikara/registory-gate/internal/policy"
-	"github.com/pirikara/registory-gate/internal/policy/rules"
+	dockeradapter "github.com/pirikara/registry-gate/internal/adapter/docker"
+	"github.com/pirikara/registry-gate/internal/cache"
+	"github.com/pirikara/registry-gate/internal/facts"
+	"github.com/pirikara/registry-gate/internal/history"
+	"github.com/pirikara/registry-gate/internal/policy"
+	"github.com/pirikara/registry-gate/internal/policy/rules"
 )
 
 // buildUpstream creates a fake Docker Registry v2 server.

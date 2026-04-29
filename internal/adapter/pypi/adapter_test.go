@@ -10,11 +10,11 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/pirikara/registory-gate/internal/adapter/pypi"
-	"github.com/pirikara/registory-gate/internal/cache"
-	"github.com/pirikara/registory-gate/internal/history"
-	"github.com/pirikara/registory-gate/internal/policy"
-	"github.com/pirikara/registory-gate/internal/policy/rules"
+	"github.com/pirikara/registry-gate/internal/adapter/pypi"
+	"github.com/pirikara/registry-gate/internal/cache"
+	"github.com/pirikara/registry-gate/internal/history"
+	"github.com/pirikara/registry-gate/internal/policy"
+	"github.com/pirikara/registry-gate/internal/policy/rules"
 )
 
 // upstreamConfig drives the test upstream server: it routes requests by path
@@ -395,10 +395,10 @@ func TestPyPI_Package_Block_HeadersPresent(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	if resp.Header.Get("X-RegistoryGate-Block-Reason") == "" {
-		t.Error("X-RegistoryGate-Block-Reason header should be set on block")
+	if resp.Header.Get("X-RegistryGate-Block-Reason") == "" {
+		t.Error("X-RegistryGate-Block-Reason header should be set on block")
 	}
-	if resp.Header.Get("X-RegistoryGate-Block-Detail") == "" {
-		t.Error("X-RegistoryGate-Block-Detail header should be set on block")
+	if resp.Header.Get("X-RegistryGate-Block-Detail") == "" {
+		t.Error("X-RegistryGate-Block-Detail header should be set on block")
 	}
 }

@@ -8,8 +8,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/pirikara/registory-gate/internal/adapter/rubygems"
-	"github.com/pirikara/registory-gate/internal/facts"
+	"github.com/pirikara/registry-gate/internal/adapter/rubygems"
+	"github.com/pirikara/registry-gate/internal/facts"
 )
 
 func readRubyFixture(t *testing.T, name string) []byte {

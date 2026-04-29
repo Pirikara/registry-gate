@@ -3,9 +3,9 @@ package rules_test
 import (
 	"testing"
 
-	"github.com/pirikara/registory-gate/internal/facts"
-	"github.com/pirikara/registory-gate/internal/policy"
-	"github.com/pirikara/registory-gate/internal/policy/rules"
+	"github.com/pirikara/registry-gate/internal/facts"
+	"github.com/pirikara/registry-gate/internal/policy"
+	"github.com/pirikara/registry-gate/internal/policy/rules"
 )
 
 func TestAllowRule_Match(t *testing.T) {

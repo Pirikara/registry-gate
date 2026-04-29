@@ -1,7 +1,7 @@
-# Registory Gate policy.
+# Registry Gate policy.
 #
 # Mount this file into the proxy and admin containers and point POLICY_FILE
-# at it (e.g. POLICY_FILE=/etc/registory-gate/policy.yaml).
+# at it (e.g. POLICY_FILE=/etc/registry-gate/policy.yaml).
 #
 # Rules are evaluated top-to-bottom. The first matching `allow` rule short-
 # circuits and lets the package through. Otherwise, every matching rule is

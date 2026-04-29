@@ -11,11 +11,11 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	npmadapter "github.com/pirikara/registory-gate/internal/adapter/npm"
-	"github.com/pirikara/registory-gate/internal/cache"
-	"github.com/pirikara/registory-gate/internal/history"
-	"github.com/pirikara/registory-gate/internal/policy"
-	"github.com/pirikara/registory-gate/internal/policy/rules"
+	npmadapter "github.com/pirikara/registry-gate/internal/adapter/npm"
+	"github.com/pirikara/registry-gate/internal/cache"
+	"github.com/pirikara/registry-gate/internal/history"
+	"github.com/pirikara/registry-gate/internal/policy"
+	"github.com/pirikara/registry-gate/internal/policy/rules"
 )
 
 var _ context.Context // keep context import used elsewhere
@@ -265,8 +265,8 @@ func TestAdapter_Tarball_Blocked_403(t *testing.T) {
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("expected 403, got %d", resp.StatusCode)
 	}
-	if resp.Header.Get("X-RegistoryGate-Block-Reason") == "" {
-		t.Error("expected X-RegistoryGate-Block-Reason header")
+	if resp.Header.Get("X-RegistryGate-Block-Reason") == "" {
+		t.Error("expected X-RegistryGate-Block-Reason header")
 	}
 }
 
@@ -313,11 +313,11 @@ func TestAdapter_Tarball_Block_HeadersPresent(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	if resp.Header.Get("X-RegistoryGate-Block-Reason") == "" {
-		t.Error("X-RegistoryGate-Block-Reason header should be set on block")
+	if resp.Header.Get("X-RegistryGate-Block-Reason") == "" {
+		t.Error("X-RegistryGate-Block-Reason header should be set on block")
 	}
-	if resp.Header.Get("X-RegistoryGate-Block-Detail") == "" {
-		t.Error("X-RegistoryGate-Block-Detail header should be set on block")
+	if resp.Header.Get("X-RegistryGate-Block-Detail") == "" {
+		t.Error("X-RegistryGate-Block-Detail header should be set on block")
 	}
 }
 

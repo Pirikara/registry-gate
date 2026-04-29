@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pirikara/registory-gate/internal/facts"
+	"github.com/pirikara/registry-gate/internal/facts"
 )
 
 // RegistryMetadata is the top-level structure returned by
@@ -92,7 +92,7 @@ func ParseMetadata(data []byte) (*RegistryMetadata, error) {
 }
 
 // RewriteTarballURLs replaces the tarball URL in every version with one
-// routed through the Registory Gate proxy so the tarball request is intercepted.
+// routed through the Registry Gate proxy so the tarball request is intercepted.
 func (m *RegistryMetadata) RewriteTarballURLs(proxyBaseURL string) {
 	proxyBaseURL = strings.TrimRight(proxyBaseURL, "/")
 	for _, v := range m.Versions {

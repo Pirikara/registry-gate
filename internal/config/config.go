@@ -44,7 +44,7 @@ type UpstreamConfig struct {
 
 type ProxyConfig struct {
 	// Public base URL used to rewrite tarball URLs in metadata responses.
-	// e.g. "https://npm.registory-gate.example.com"
+	// e.g. "https://npm.registry-gate.example.com"
 	NPMBaseURL string
 }
 

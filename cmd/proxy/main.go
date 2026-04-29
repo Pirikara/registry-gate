@@ -15,17 +15,17 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	npmadapter "github.com/pirikara/registory-gate/internal/adapter/npm"
-	pypiadapter "github.com/pirikara/registory-gate/internal/adapter/pypi"
-	brewadapter "github.com/pirikara/registory-gate/internal/adapter/homebrew"
-	dockeradapter "github.com/pirikara/registory-gate/internal/adapter/docker"
-	gemsadapter "github.com/pirikara/registory-gate/internal/adapter/rubygems"
-	"github.com/pirikara/registory-gate/internal/cache"
-	"github.com/pirikara/registory-gate/internal/config"
-	"github.com/pirikara/registory-gate/internal/db"
-	"github.com/pirikara/registory-gate/internal/history"
-	"github.com/pirikara/registory-gate/internal/policy"
-	"github.com/pirikara/registory-gate/internal/policyfile"
+	npmadapter "github.com/pirikara/registry-gate/internal/adapter/npm"
+	pypiadapter "github.com/pirikara/registry-gate/internal/adapter/pypi"
+	brewadapter "github.com/pirikara/registry-gate/internal/adapter/homebrew"
+	dockeradapter "github.com/pirikara/registry-gate/internal/adapter/docker"
+	gemsadapter "github.com/pirikara/registry-gate/internal/adapter/rubygems"
+	"github.com/pirikara/registry-gate/internal/cache"
+	"github.com/pirikara/registry-gate/internal/config"
+	"github.com/pirikara/registry-gate/internal/db"
+	"github.com/pirikara/registry-gate/internal/history"
+	"github.com/pirikara/registry-gate/internal/policy"
+	"github.com/pirikara/registry-gate/internal/policyfile"
 )
 
 func main() {
