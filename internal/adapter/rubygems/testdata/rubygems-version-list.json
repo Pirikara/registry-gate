@@ -1,0 +1,23 @@
+[
+  {
+    "number":          "7.1.0",
+    "created_at":      "2023-10-04T09:21:56.000Z",
+    "authors":         "Test Developer",
+    "yanked":          false,
+    "downloads_count": 12345678
+  },
+  {
+    "number":          "7.0.8",
+    "created_at":      "2023-09-09T12:34:56.789Z",
+    "authors":         "Test Developer",
+    "yanked":          false,
+    "downloads_count": 98765432
+  },
+  {
+    "number":          "6.1.7",
+    "created_at":      "2023-06-01T08:00:00.000Z",
+    "authors":         "Test Developer",
+    "yanked":          false,
+    "downloads_count": 200000000
+  }
+]

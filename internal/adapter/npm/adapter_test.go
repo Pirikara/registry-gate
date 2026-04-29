@@ -57,6 +57,19 @@ func buildUpstream(meta *npmadapter.RegistryMetadata) *httptest.Server {
 	}))
 }
 
+// buildDownloadsAPI creates a mock npm downloads API server that returns a
+// fixed download count. The real API lives at api.npmjs.org; tests must point
+// the adapter at this server via DownloadsAPIBase to avoid real network calls.
+func buildDownloadsAPI(downloads int64) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"downloads": downloads,
+			"package":   "test-pkg",
+		})
+	}))
+}
+
 // buildMeta creates a minimal RegistryMetadata with the given age.
 func buildMeta(name, version string, ageDays int, withProvenance bool) *npmadapter.RegistryMetadata {
 	var att *npmadapter.Attestations
@@ -90,27 +103,35 @@ func buildMeta(name, version string, ageDays int, withProvenance bool) *npmadapt
 
 func setupAdapter(eng *policy.Engine) (*httptest.Server, *httptest.Server) {
 	upstream := buildUpstream(buildMeta("lodash", "4.17.21", 30, false))
-
-	recorder := history.NewRecorder(nil) // nil db — calls will panic; use noopRecorder approach below
-	_ = recorder
-
-	// We mount the adapter on a chi router and wrap it in a test server.
 	r := chi.NewRouter()
-	// Create adapter with noopRecorder via a test-friendly factory.
-	adp := buildTestAdapter(upstream.URL, eng)
-	adp.Mount(r)
+	buildTestAdapter(upstream.URL, eng).Mount(r)
 	proxy := httptest.NewServer(r)
 	return upstream, proxy
 }
 
 // buildTestAdapter builds an Adapter with a noop recorder and noop cache.
-func buildTestAdapter(upstreamURL string, eng *policy.Engine) *npmadapter.Adapter {
+// downloadsURL sets DownloadsAPIBase; pass "" to use a no-op stub that returns
+// immediately (avoids real api.npmjs.org calls in tests).
+func buildTestAdapter(upstreamURL string, eng *policy.Engine, downloadsURL ...string) *npmadapter.Adapter {
+	dlBase := ""
+	if len(downloadsURL) > 0 && downloadsURL[0] != "" {
+		dlBase = downloadsURL[0]
+	} else {
+		// Stub server that always returns 0 downloads — fast and deterministic.
+		stub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"downloads":0}`))
+		}))
+		// The stub leaks but httptest servers are tiny; acceptable for tests.
+		dlBase = stub.URL
+	}
 	return npmadapter.NewTestAdapter(npmadapter.Config{
-		UpstreamURL: upstreamURL,
-		ProxyBase:   "http://localhost:8080",
-		PolicyEng:   eng,
-		Recorder:    history.NewNoopRecorder(),
-		Cache:       cache.NoopCache{},
+		UpstreamURL:      upstreamURL,
+		ProxyBase:        "http://localhost:8080",
+		DownloadsAPIBase: dlBase,
+		PolicyEng:        eng,
+		Recorder:         history.NewNoopRecorder(),
+		Cache:            cache.NoopCache{},
 	})
 }
 
@@ -200,14 +221,7 @@ func TestAdapter_Tarball_Allowed_Redirect(t *testing.T) {
 	upstream := buildUpstream(buildMeta("lodash", "4.17.21", 30, false))
 	defer upstream.Close()
 
-	adp := npmadapter.NewTestAdapter(npmadapter.Config{
-		UpstreamURL: upstream.URL,
-		ProxyBase:   "http://localhost:8080",
-		PolicyEng:   openPolicyEng(),
-		Recorder:    history.NewNoopRecorder(),
-		Cache:       cache.NoopCache{},
-	})
-	adp.Mount(r)
+	buildTestAdapter(upstream.URL, openPolicyEng()).Mount(r)
 	proxy := httptest.NewServer(r)
 	defer proxy.Close()
 
@@ -238,14 +252,7 @@ func TestAdapter_Tarball_Blocked_403(t *testing.T) {
 	upstream := buildUpstream(buildMeta("newpkg", "0.0.1", 1, false))
 	defer upstream.Close()
 
-	adp := npmadapter.NewTestAdapter(npmadapter.Config{
-		UpstreamURL: upstream.URL,
-		ProxyBase:   "http://localhost:8080",
-		PolicyEng:   cooldownEng(7),
-		Recorder:    history.NewNoopRecorder(),
-		Cache:       cache.NoopCache{},
-	})
-	adp.Mount(r)
+	buildTestAdapter(upstream.URL, cooldownEng(7)).Mount(r)
 	proxy := httptest.NewServer(r)
 	defer proxy.Close()
 
@@ -260,6 +267,57 @@ func TestAdapter_Tarball_Blocked_403(t *testing.T) {
 	}
 	if resp.Header.Get("X-RegistoryGate-Block-Reason") == "" {
 		t.Error("expected X-RegistoryGate-Block-Reason header")
+	}
+}
+
+func TestAdapter_Tarball_DenyList_Block(t *testing.T) {
+	r := chi.NewRouter()
+	upstream := buildUpstream(buildMeta("banned-pkg", "1.0.0", 30, false))
+	defer upstream.Close()
+
+	eng := policy.NewEngine([]policy.Entry{{
+		Rule: rules.NewDeny("deny", []policy.PackageRef{
+			{Ecosystem: "npm", Name: "banned-pkg"},
+		}),
+	}})
+	adp := buildTestAdapter(upstream.URL, eng)
+	adp.Mount(r)
+	proxy := httptest.NewServer(r)
+	defer proxy.Close()
+
+	resp, err := http.Get(proxy.URL + "/banned-pkg/-/banned-pkg-1.0.0.tgz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected 403 from deny list, got %d", resp.StatusCode)
+	}
+}
+
+// ブロック時に両方のヘッダーが設定されていること。
+func TestAdapter_Tarball_Block_HeadersPresent(t *testing.T) {
+	r := chi.NewRouter()
+	upstream := buildUpstream(buildMeta("newpkg", "0.0.1", 1, false))
+	defer upstream.Close()
+
+	adp := buildTestAdapter(upstream.URL, cooldownEng(7))
+	adp.Mount(r)
+	proxy := httptest.NewServer(r)
+	defer proxy.Close()
+
+	resp, err := http.Get(proxy.URL + "/newpkg/-/newpkg-0.0.1.tgz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.Header.Get("X-RegistoryGate-Block-Reason") == "" {
+		t.Error("X-RegistoryGate-Block-Reason header should be set on block")
+	}
+	if resp.Header.Get("X-RegistoryGate-Block-Detail") == "" {
+		t.Error("X-RegistoryGate-Block-Detail header should be set on block")
 	}
 }
 
@@ -315,14 +373,7 @@ func TestAdapter_Tarball_TrustDowngrade_Block(t *testing.T) {
 	defer upstream.Close()
 
 	r := chi.NewRouter()
-	adp := npmadapter.NewTestAdapter(npmadapter.Config{
-		UpstreamURL: upstream.URL,
-		ProxyBase:   "http://localhost:8080",
-		PolicyEng:   eng,
-		Recorder:    history.NewNoopRecorder(),
-		Cache:       cache.NoopCache{},
-	})
-	adp.Mount(r)
+	buildTestAdapter(upstream.URL, eng).Mount(r)
 	proxy := httptest.NewServer(r)
 	defer proxy.Close()
 
@@ -334,5 +385,67 @@ func TestAdapter_Tarball_TrustDowngrade_Block(t *testing.T) {
 
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("expected 403 for trust downgrade (provenance lost vs baseline), got %d", resp.StatusCode)
+	}
+}
+
+// --- min_downloads + npm downloads API ---
+
+func TestAdapter_Tarball_MinDownloads_Block(t *testing.T) {
+	dlSrv := buildDownloadsAPI(42) // 42 < 1000 threshold → block
+	defer dlSrv.Close()
+
+	upstream := buildUpstream(buildMeta("obscure-pkg", "1.0.0", 30, false))
+	defer upstream.Close()
+
+	eng := policy.NewEngine([]policy.Entry{{
+		Rule: rules.NewMinDownloads("min-dl", 1000),
+	}})
+
+	r := chi.NewRouter()
+	buildTestAdapter(upstream.URL, eng, dlSrv.URL).Mount(r)
+	proxy := httptest.NewServer(r)
+	defer proxy.Close()
+
+	resp, err := http.Get(proxy.URL + "/obscure-pkg/-/obscure-pkg-1.0.0.tgz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected 403 (42 downloads < 1000 threshold), got %d", resp.StatusCode)
+	}
+}
+
+func TestAdapter_Tarball_MinDownloads_Allow(t *testing.T) {
+	dlSrv := buildDownloadsAPI(50000) // 50000 >= 1000 threshold → allow
+	defer dlSrv.Close()
+
+	upstream := buildUpstream(buildMeta("popular-pkg", "1.0.0", 30, false))
+	defer upstream.Close()
+
+	eng := policy.NewEngine([]policy.Entry{{
+		Rule: rules.NewMinDownloads("min-dl", 1000),
+	}})
+
+	client := &http.Client{
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
+	r := chi.NewRouter()
+	buildTestAdapter(upstream.URL, eng, dlSrv.URL).Mount(r)
+	proxy := httptest.NewServer(r)
+	defer proxy.Close()
+
+	resp, err := client.Get(proxy.URL + "/popular-pkg/-/popular-pkg-1.0.0.tgz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusFound {
+		t.Fatalf("expected 302 (50000 downloads >= 1000 threshold), got %d", resp.StatusCode)
 	}
 }

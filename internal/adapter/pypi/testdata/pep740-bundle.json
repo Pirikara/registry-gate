@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "attestation_bundles": [
+    {
+      "publisher": {
+        "kind":        "GitHub",
+        "repository":  "example-org/dummy-http",
+        "workflow":    "publish.yml",
+        "environment": "release"
+      },
+      "attestations": []
+    }
+  ]
+}

@@ -117,3 +117,37 @@ func TestHomebrew_Bottle_Blocked_403(t *testing.T) {
 		t.Fatalf("expected 403, got %d", resp.StatusCode)
 	}
 }
+
+// Homebrew アダプターは PublishedAt を取得しないため、cooldown は常に
+// "published_at unknown" としてブロックする。
+func TestHomebrew_Bottle_Cooldown_Block(t *testing.T) {
+	formulaSrv := buildFormulaServer("git", "homebrew/core")
+	bottleUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {}))
+	defer formulaSrv.Close()
+	defer bottleUpstream.Close()
+
+	eng := policy.NewEngine([]policy.Entry{{
+		Rule: rules.NewCooldown("cd", 7),
+	}})
+
+	r := chi.NewRouter()
+	buildBottleAdapter(formulaSrv.URL, bottleUpstream.URL, eng).Mount(r)
+	proxy := httptest.NewServer(r)
+	defer proxy.Close()
+
+	resp, err := http.Get(proxy.URL + "/bottles/git--2.42.0.arm64_sonoma.bottle.tar.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected 403 (published_at unknown → cooldown blocks), got %d", resp.StatusCode)
+	}
+	if resp.Header.Get("X-RegistoryGate-Block-Reason") == "" {
+		t.Error("X-RegistoryGate-Block-Reason header should be set on block")
+	}
+	if resp.Header.Get("X-RegistoryGate-Block-Detail") == "" {
+		t.Error("X-RegistoryGate-Block-Detail header should be set on block")
+	}
+}

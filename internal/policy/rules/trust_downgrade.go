@@ -64,24 +64,35 @@ func (r *TrustDowngradeRule) Evaluate(ctx policy.EvalContext) (*policy.Outcome, 
 
 	baseline := aggregateBaseline(ctx.Baseline)
 	var violations []string
+	var warnReasons []string
 
 	for _, w := range r.Watch {
-		violation := r.checkSignal(w, baseline, ctx.Target)
-		if violation != "" {
-			violations = append(violations, violation)
+		bMsg, wMsg := r.checkSignal(w, baseline, ctx.Target)
+		if bMsg != "" {
+			violations = append(violations, bMsg)
+		}
+		if wMsg != "" {
+			warnReasons = append(warnReasons, wMsg)
 		}
 	}
 
-	if len(violations) == 0 {
-		return nil, nil
+	if len(violations) > 0 {
+		return &policy.Outcome{
+			Decision: policy.DecisionBlock,
+			RuleID:   r.id,
+			Reason:   "trust_downgrade",
+			Detail:   strings.Join(violations, "; "),
+		}, nil
 	}
-
-	return &policy.Outcome{
-		Decision: policy.DecisionBlock,
-		RuleID:   r.id,
-		Reason:   "trust_downgrade",
-		Detail:   strings.Join(violations, "; "),
-	}, nil
+	if len(warnReasons) > 0 {
+		return &policy.Outcome{
+			Decision: policy.DecisionWarn,
+			RuleID:   r.id,
+			Reason:   "trust_downgrade",
+			Detail:   strings.Join(warnReasons, "; "),
+		}, nil
+	}
+	return nil, nil
 }
 
 // aggregatedBaseline holds the "majority" trust state derived from baseline versions.
@@ -204,11 +215,12 @@ func aggregateBaseline(versions []facts.PackageFacts) aggregatedBaseline {
 	return b
 }
 
+// checkSignal returns (blockMsg, warnMsg). At most one is non-empty.
 func (r *TrustDowngradeRule) checkSignal(
 	w TrustDowngradeWatch,
 	base aggregatedBaseline,
 	target facts.PackageFacts,
-) string {
+) (blockMsg, warnMsg string) {
 	switch w {
 	case WatchProvenancePresent:
 		if base.ProvenancePresent == nil {
@@ -216,7 +228,7 @@ func (r *TrustDowngradeRule) checkSignal(
 		}
 		targetVal := target.Trust != nil && target.Trust.Provenance != nil && target.Trust.Provenance.Present
 		if *base.ProvenancePresent && !targetVal {
-			return fmt.Sprintf("provenance.present: true → false")
+			return "provenance.present: true → false", ""
 		}
 
 	case WatchProvenanceVerified:
@@ -225,7 +237,7 @@ func (r *TrustDowngradeRule) checkSignal(
 		}
 		targetVal := target.Trust != nil && target.Trust.Provenance != nil && target.Trust.Provenance.Verified
 		if *base.ProvenanceVerified && !targetVal {
-			return "provenance.verified: true → false"
+			return "provenance.verified: true → false", ""
 		}
 
 	case WatchPublisherType:
@@ -234,32 +246,32 @@ func (r *TrustDowngradeRule) checkSignal(
 		}
 		if target.Trust == nil || target.Trust.Publisher == nil {
 			if *base.PublisherType > facts.TrustUnknown {
-				return fmt.Sprintf("publisher.type: %s → unknown", base.PublisherType.String())
+				return fmt.Sprintf("publisher.type: %s → unknown", base.PublisherType.String()), ""
 			}
-			return ""
+			return "", ""
 		}
 		if target.Trust.Publisher.Level < *base.PublisherType {
 			return fmt.Sprintf(
 				"publisher.type: %s → %s",
 				base.PublisherType.String(),
 				target.Trust.Publisher.Level.String(),
-			)
+			), ""
 		}
 
 	case WatchPublisherID:
 		if base.PublisherID == nil {
 			// Baseline publishers were not consistent; skip.
-			return ""
+			return "", ""
 		}
 		if target.Trust == nil || target.Trust.Publisher == nil {
-			return fmt.Sprintf("publisher.id: %q → unknown", *base.PublisherID)
+			return fmt.Sprintf("publisher.id: %q → unknown", *base.PublisherID), ""
 		}
 		if target.Trust.Publisher.ID != *base.PublisherID {
 			return fmt.Sprintf(
 				"publisher.id: %q → %q",
 				*base.PublisherID,
 				target.Trust.Publisher.ID,
-			)
+			), ""
 		}
 
 	case WatchPublisherTwoFactor:
@@ -268,12 +280,12 @@ func (r *TrustDowngradeRule) checkSignal(
 		}
 		if target.Trust == nil || target.Trust.Publisher == nil || target.Trust.Publisher.TwoFactorEnabled == nil {
 			if *base.TwoFactor {
-				return "publisher.two_factor: true → unknown"
+				return "publisher.two_factor: true → unknown", ""
 			}
-			return ""
+			return "", ""
 		}
 		if *base.TwoFactor && !*target.Trust.Publisher.TwoFactorEnabled {
-			return "publisher.two_factor: true → false"
+			return "publisher.two_factor: true → false", ""
 		}
 
 	case WatchSignaturePresent:
@@ -282,7 +294,7 @@ func (r *TrustDowngradeRule) checkSignal(
 		}
 		targetVal := target.Trust != nil && target.Trust.Signature != nil && target.Trust.Signature.Present
 		if *base.SignaturePresent && !targetVal {
-			return "signature.present: true → false"
+			return "signature.present: true → false", ""
 		}
 
 	case WatchSignatureVerified:
@@ -291,19 +303,23 @@ func (r *TrustDowngradeRule) checkSignal(
 		}
 		targetVal := target.Trust != nil && target.Trust.Signature != nil && target.Trust.Signature.Verified
 		if *base.SignatureVerified && !targetVal {
-			return "signature.verified: true → false"
+			return "signature.verified: true → false", ""
 		}
 	}
 
-	return ""
+	return "", ""
 }
 
-func (r *TrustDowngradeRule) unknownMsg(signal string) string {
-	if r.OnUnknown == OnUnknownBlock {
-		return fmt.Sprintf("%s: baseline unknown (on_unknown=block)", signal)
+// unknownMsg returns (blockMsg, warnMsg) according to on_unknown policy.
+func (r *TrustDowngradeRule) unknownMsg(signal string) (blockMsg, warnMsg string) {
+	switch r.OnUnknown {
+	case OnUnknownBlock:
+		return fmt.Sprintf("%s: baseline unknown (on_unknown=block)", signal), ""
+	case OnUnknownWarn:
+		return "", fmt.Sprintf("%s: baseline unknown (on_unknown=warn)", signal)
+	default:
+		return "", ""
 	}
-	// warn / ignore — don't add to violations for blocking purposes
-	return ""
 }
 
 func (r *TrustDowngradeRule) handleUnknown(f facts.PackageFacts, reason string) *policy.Outcome {

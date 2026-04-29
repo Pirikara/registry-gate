@@ -21,30 +21,37 @@ import (
 
 const (
 	metaCacheTTL       = 60 * time.Second
+	downloadsCacheTTL  = 24 * time.Hour // npm download counts update daily
 	baselineWindowDays = 90
 	baselineLimit      = 10
+
+	defaultDownloadsAPIBase = "https://api.npmjs.org"
 )
 
 // Adapter handles npm registry proxy requests.
 type Adapter struct {
-	upstreamURL string
-	proxyBase   string
-	policyEng   *policy.Engine
-	recorder    history.Recorder
-	cache       cache.Cache
-	httpClient  *http.Client
-	logger      *slog.Logger
+	upstreamURL     string
+	proxyBase       string
+	downloadsAPIBase string
+	policyEng       *policy.Engine
+	recorder        history.Recorder
+	cache           cache.Cache
+	httpClient      *http.Client
+	logger          *slog.Logger
 }
 
 // Config contains all dependencies needed to construct the Adapter.
 type Config struct {
-	UpstreamURL string
-	ProxyBase   string
-	PolicyEng   *policy.Engine
-	Recorder    history.Recorder
-	Cache       cache.Cache
-	HTTPClient  *http.Client
-	Logger      *slog.Logger
+	UpstreamURL      string
+	ProxyBase        string
+	// DownloadsAPIBase is the base URL for the npm downloads API.
+	// Defaults to https://api.npmjs.org; override in tests.
+	DownloadsAPIBase string
+	PolicyEng        *policy.Engine
+	Recorder         history.Recorder
+	Cache            cache.Cache
+	HTTPClient       *http.Client
+	Logger           *slog.Logger
 }
 
 // NewTestAdapter is an alias for NewAdapter; provided for clarity in tests.
@@ -57,14 +64,18 @@ func NewAdapter(cfg Config) *Adapter {
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
 	}
+	if cfg.DownloadsAPIBase == "" {
+		cfg.DownloadsAPIBase = defaultDownloadsAPIBase
+	}
 	return &Adapter{
-		upstreamURL: strings.TrimRight(cfg.UpstreamURL, "/"),
-		proxyBase:   strings.TrimRight(cfg.ProxyBase, "/"),
-		policyEng:   cfg.PolicyEng,
-		recorder:    cfg.Recorder,
-		cache:       cfg.Cache,
-		httpClient:  cfg.HTTPClient,
-		logger:      cfg.Logger,
+		upstreamURL:      strings.TrimRight(cfg.UpstreamURL, "/"),
+		proxyBase:        strings.TrimRight(cfg.ProxyBase, "/"),
+		downloadsAPIBase: strings.TrimRight(cfg.DownloadsAPIBase, "/"),
+		policyEng:        cfg.PolicyEng,
+		recorder:         cfg.Recorder,
+		cache:            cfg.Cache,
+		httpClient:       cfg.HTTPClient,
+		logger:           cfg.Logger,
 	}
 }
 
@@ -170,6 +181,13 @@ func (a *Adapter) serveTarball(w http.ResponseWriter, r *http.Request, pkg, file
 		}
 	}
 
+	// Enrich with download count (best-effort; failure is non-fatal).
+	if count, err := a.fetchDownloadCount(ctx, pkg); err == nil {
+		pf.DownloadCount = count
+	} else {
+		a.logger.WarnContext(ctx, "fetch npm download count", "pkg", pkg, "err", err)
+	}
+
 	baseline := meta.BaselineFromMetadata(version, baselineWindowDays, baselineLimit)
 	result, err := a.policyEng.Evaluate(ctx, *pf, policy.WithBaseline(baseline))
 	if err != nil {
@@ -252,6 +270,59 @@ func (a *Adapter) fetchMetadata(ctx context.Context, pkg string) ([]byte, error)
 	}
 
 	return body, nil
+}
+
+// npmDownloadsResponse is the response from
+// GET https://api.npmjs.org/downloads/point/last-month/{package}
+type npmDownloadsResponse struct {
+	Downloads int64  `json:"downloads"`
+	Package   string `json:"package"`
+}
+
+// fetchDownloadCount returns the last-30-day download count for pkg from the
+// npm downloads API. Results are cached for 24 hours since the data is daily.
+func (a *Adapter) fetchDownloadCount(ctx context.Context, pkg string) (*int64, error) {
+	cacheKey := "npm:downloads:" + pkg
+	if a.cache != nil {
+		if cached, err := a.cache.Get(ctx, cacheKey); err == nil {
+			var resp npmDownloadsResponse
+			if err := json.Unmarshal(cached, &resp); err == nil {
+				return &resp.Downloads, nil
+			}
+		}
+	}
+
+	url := fmt.Sprintf("%s/downloads/point/last-month/%s", a.downloadsAPIBase, pkg)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := a.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("downloads api request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("downloads api returned %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read downloads api body: %w", err)
+	}
+
+	var dlResp npmDownloadsResponse
+	if err := json.Unmarshal(body, &dlResp); err != nil {
+		return nil, fmt.Errorf("parse downloads api response: %w", err)
+	}
+
+	if a.cache != nil {
+		_ = a.cache.Set(ctx, cacheKey, body, downloadsCacheTTL)
+	}
+
+	return &dlResp.Downloads, nil
 }
 
 // extractVersion parses the version from a tarball filename.

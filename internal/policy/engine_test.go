@@ -177,6 +177,65 @@ func TestEngine_WithBaseline(t *testing.T) {
 	}
 }
 
+// warn: on_unknown=warn でベースラインなし → Warn 決定 (ブロックではない)
+func TestEngine_WarnDecision(t *testing.T) {
+	eng := policy.NewEngine([]policy.Entry{{
+		Rule: rules.NewTrustDowngrade("td",
+			[]rules.TrustDowngradeWatch{rules.WatchProvenancePresent},
+			rules.OnUnknownWarn,
+		),
+	}})
+
+	target := facts.PackageFacts{
+		Ecosystem: facts.EcosystemNPM,
+		Name:      "new-pkg",
+		Version:   "1.0.0",
+	}
+	res, err := eng.Evaluate(context.Background(), target, policy.WithBaseline(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Decision != policy.DecisionWarn {
+		t.Errorf("expected Warn for no-baseline with on_unknown=warn, got %v", res.Decision)
+	}
+	// Warn はブロックではないので BlockReason は空のはず。
+	if res.BlockReason() != "" {
+		t.Errorf("BlockReason should be empty for Warn, got %q", res.BlockReason())
+	}
+}
+
+// warn が先にあっても、その後の block が最終決定を上書きする。
+func TestEngine_BlockOverridesWarn(t *testing.T) {
+	eng := policy.NewEngine([]policy.Entry{
+		{
+			Rule: rules.NewTrustDowngrade("td",
+				[]rules.TrustDowngradeWatch{rules.WatchProvenancePresent},
+				rules.OnUnknownWarn, // no baseline → warn
+			),
+		},
+		{
+			Rule: rules.NewCooldown("cd", 7), // PublishedAt zero → block
+		},
+	})
+
+	target := facts.PackageFacts{
+		Ecosystem: facts.EcosystemNPM,
+		Name:      "new-pkg",
+		Version:   "1.0.0",
+		// PublishedAt zero → cooldown blocks
+	}
+	res, err := eng.Evaluate(context.Background(), target, policy.WithBaseline(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Decision != policy.DecisionBlock {
+		t.Errorf("Block should override Warn, got %v", res.Decision)
+	}
+	if res.BlockReason() == "" {
+		t.Error("BlockReason should be non-empty when blocked")
+	}
+}
+
 // trust_downgrade と cooldown を複数 entry として並べる
 func TestEngine_TrustDowngradeAndCooldown(t *testing.T) {
 	trustedPkg := facts.PackageFacts{

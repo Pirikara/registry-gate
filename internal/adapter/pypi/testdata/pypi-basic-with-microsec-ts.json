@@ -1,0 +1,39 @@
+{
+  "info": {
+    "name":          "dummy-http",
+    "version":       "2.31.0",
+    "summary":       "Dummy HTTP library for testing.",
+    "author":        "Test Author",
+    "license":       "MIT",
+    "requires_dist": ["dummy-dep (<4,>=2)"],
+    "yanked":        false,
+    "yanked_reason": null
+  },
+  "releases": {
+    "2.31.0": [
+      {
+        "filename":             "dummy_http-2.31.0-py3-none-any.whl",
+        "url":                  "https://files.pythonhosted.org/packages/00/dummy_http-2.31.0-py3-none-any.whl#sha256=aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899",
+        "packagetype":          "bdist_wheel",
+        "upload_time":          "2023-05-22T15:12:34",
+        "upload_time_iso_8601": "2023-05-22T15:12:34.103116Z",
+        "yanked":               false,
+        "digests": {
+          "sha256": "aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899"
+        }
+      },
+      {
+        "filename":             "dummy-http-2.31.0.tar.gz",
+        "url":                  "https://files.pythonhosted.org/packages/00/dummy-http-2.31.0.tar.gz#sha256=11223344556677889900aabbccddeeff11223344556677889900aabbccddeeff",
+        "packagetype":          "sdist",
+        "upload_time":          "2023-05-22T15:12:35",
+        "upload_time_iso_8601": "2023-05-22T15:12:35.500001Z",
+        "yanked":               false,
+        "digests": {
+          "sha256": "11223344556677889900aabbccddeeff11223344556677889900aabbccddeeff"
+        }
+      }
+    ]
+  },
+  "urls": []
+}

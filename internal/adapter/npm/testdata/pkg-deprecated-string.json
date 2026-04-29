@@ -1,0 +1,20 @@
+{
+  "name": "dummy-deprecated-pkg",
+  "dist-tags": {"latest": "2.88.2"},
+  "time": {
+    "2.88.2": "2019-11-26T17:59:45.124Z"
+  },
+  "versions": {
+    "2.88.2": {
+      "name":       "dummy-deprecated-pkg",
+      "version":    "2.88.2",
+      "dist": {
+        "tarball":   "https://registry.npmjs.org/dummy-deprecated-pkg/-/dummy-deprecated-pkg-2.88.2.tgz",
+        "shasum":    "aabbccddeeff00112233445566778899aabbccdd",
+        "integrity": "sha512-dummyIntegrityValueForTestingPurposesOnly=="
+      },
+      "_npmUser":   {"name": "testauthor"},
+      "deprecated": "dummy-deprecated-pkg has been deprecated, please use dummy-new-pkg instead"
+    }
+  }
+}

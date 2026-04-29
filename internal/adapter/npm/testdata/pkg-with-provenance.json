@@ -1,0 +1,28 @@
+{
+  "name": "dummy-provenance-pkg",
+  "dist-tags": {"latest": "1.0.0"},
+  "time": {
+    "1.0.0": "2024-03-15T10:30:00.500Z"
+  },
+  "versions": {
+    "1.0.0": {
+      "name":    "dummy-provenance-pkg",
+      "version": "1.0.0",
+      "dist": {
+        "tarball":   "https://registry.npmjs.org/dummy-provenance-pkg/-/dummy-provenance-pkg-1.0.0.tgz",
+        "shasum":    "aabbccddeeff00112233445566778899aabbccdd",
+        "integrity": "sha512-dummyIntegrityValueForTestingPurposesOnly=="
+      },
+      "_npmUser": {"name": "testauthor", "email": "testauthor@example.com"},
+      "attestations": {
+        "url": "https://registry.npmjs.org/-/npm/v1/attestations/dummy-provenance-pkg@1.0.0",
+        "provenance": {
+          "predicateType":    "https://slsa.dev/provenance/v1",
+          "bundleCount":      1,
+          "builderId":        "https://github.com/actions/runner",
+          "sourceRepository": "https://github.com/example-org/dummy-provenance-pkg"
+        }
+      }
+    }
+  }
+}

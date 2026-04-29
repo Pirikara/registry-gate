@@ -1,0 +1,22 @@
+{
+  "name": "dummy-util",
+  "dist-tags": {"latest": "4.17.21"},
+  "time": {
+    "created":  "2012-04-26T19:46:14.072Z",
+    "modified": "2021-10-19T01:01:05.100Z",
+    "4.17.21":  "2021-10-19T01:01:01.100Z"
+  },
+  "versions": {
+    "4.17.21": {
+      "name":    "dummy-util",
+      "version": "4.17.21",
+      "dist": {
+        "tarball":   "https://registry.npmjs.org/dummy-util/-/dummy-util-4.17.21.tgz",
+        "shasum":    "aabbccddeeff00112233445566778899aabbccdd",
+        "integrity": "sha512-dummyIntegrityValueForTestingPurposesOnly=="
+      },
+      "_npmUser": {"name": "testuser", "email": "testuser@example.com"},
+      "deprecated": false
+    }
+  }
+}

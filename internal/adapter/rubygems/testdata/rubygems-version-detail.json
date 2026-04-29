@@ -1,0 +1,12 @@
+{
+  "name":               "dummy-framework",
+  "number":             "7.1.0",
+  "authors":            "Test Developer",
+  "version_created_at": "2023-10-04T09:21:56.000Z",
+  "created_at":         "2023-10-04T09:21:56.000Z",
+  "source_code_uri":    "https://github.com/example-org/dummy-framework/tree/v7.1.0",
+  "yanked":             false,
+  "metadata": {
+    "rubygems_mfa_required": "true"
+  }
+}

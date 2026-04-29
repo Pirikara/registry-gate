@@ -21,19 +21,19 @@ func (r *MinDownloadsRule) ID() string { return r.id }
 
 func (r *MinDownloadsRule) Evaluate(ctx policy.EvalContext) (*policy.Outcome, error) {
 	f := ctx.Target
-	if f.DownloadsLast30Days == nil {
+	if f.DownloadCount == nil {
 		// Unknown download count (e.g. private registry) — cannot enforce, allow.
 		return nil, nil
 	}
 
-	if *f.DownloadsLast30Days < r.Threshold {
+	if *f.DownloadCount < r.Threshold {
 		return &policy.Outcome{
 			Decision: policy.DecisionBlock,
 			RuleID:   r.id,
 			Reason:   "min_downloads",
 			Detail: fmt.Sprintf(
-				"%s@%s has %d downloads in last 30 days; minimum required is %d",
-				f.Name, f.Version, *f.DownloadsLast30Days, r.Threshold,
+				"%s@%s has %d downloads; minimum required is %d",
+				f.Name, f.Version, *f.DownloadCount, r.Threshold,
 			),
 		}, nil
 	}

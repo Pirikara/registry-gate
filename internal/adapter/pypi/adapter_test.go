@@ -345,3 +345,60 @@ func TestPyPI_Package_SDist_Blocked_403(t *testing.T) {
 		t.Fatalf("expected 403 for sdist with cooldown policy, got %d", resp.StatusCode)
 	}
 }
+
+func TestPyPI_Package_DenyList_Block(t *testing.T) {
+	// PyPI wheel filenames use underscores for package names (PEP 427).
+	// "bannedpkg" has no hyphens to avoid the ambiguity between name separators
+	// and version separators when parsing the wheel filename.
+	upstream := buildPyPIUpstream(makePyPIResp("bannedpkg", "1.0.0", 30))
+	defer upstream.Close()
+
+	eng := policy.NewEngine([]policy.Entry{{
+		Rule: rules.NewDeny("deny", []policy.PackageRef{
+			{Ecosystem: "pypi", Name: "bannedpkg"},
+		}),
+	}})
+
+	r := chi.NewRouter()
+	buildPyPIAdapter(upstream.URL, eng).Mount(r)
+	proxy := httptest.NewServer(r)
+	defer proxy.Close()
+
+	resp, err := http.Get(proxy.URL + "/packages/bannedpkg-1.0.0-py3-none-any.whl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected 403 from deny list, got %d", resp.StatusCode)
+	}
+}
+
+// ブロック時に両方のヘッダーが設定されていること。
+func TestPyPI_Package_Block_HeadersPresent(t *testing.T) {
+	upstream := buildPyPIUpstream(makePyPIResp("newpkg", "0.0.1", 1))
+	defer upstream.Close()
+
+	eng := policy.NewEngine([]policy.Entry{{
+		Rule: rules.NewCooldown("cd", 7),
+	}})
+
+	r := chi.NewRouter()
+	buildPyPIAdapter(upstream.URL, eng).Mount(r)
+	proxy := httptest.NewServer(r)
+	defer proxy.Close()
+
+	resp, err := http.Get(proxy.URL + "/packages/newpkg-0.0.1-py3-none-any.whl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.Header.Get("X-RegistoryGate-Block-Reason") == "" {
+		t.Error("X-RegistoryGate-Block-Reason header should be set on block")
+	}
+	if resp.Header.Get("X-RegistoryGate-Block-Detail") == "" {
+		t.Error("X-RegistoryGate-Block-Detail header should be set on block")
+	}
+}

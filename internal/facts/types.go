@@ -72,7 +72,10 @@ type PackageFacts struct {
 	Version             string
 	PublishedAt         time.Time
 	AgeDays             float64
-	DownloadsLast30Days *int64
+	// DownloadCount is the download count reported by the registry.
+	// Semantics vary: npm provides last-30-day downloads; RubyGems provides
+	// lifetime total downloads. nil means the registry does not expose this data.
+	DownloadCount *int64
 	IsDeprecated        bool
 	Yanked              bool
 	Trust               *TrustSignals

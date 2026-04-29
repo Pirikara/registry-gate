@@ -308,3 +308,57 @@ func TestParseGemFilename(t *testing.T) {
 		}
 	}
 }
+
+func TestRubyGems_GemDownload_DenyList_Block(t *testing.T) {
+	upstream := buildUpstream(makeVersionList("newgem", "1.0.0", 30, false))
+	defer upstream.Close()
+
+	eng := policy.NewEngine([]policy.Entry{{
+		Rule: rules.NewDeny("deny", []policy.PackageRef{
+			{Ecosystem: "rubygems", Name: "newgem"},
+		}),
+	}})
+
+	r := chi.NewRouter()
+	buildAdapter(upstream.URL, eng).Mount(r)
+	proxy := httptest.NewServer(r)
+	defer proxy.Close()
+
+	resp, err := http.Get(proxy.URL + "/gems/newgem-1.0.0.gem")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected 403 from deny list, got %d", resp.StatusCode)
+	}
+}
+
+// ブロック時に両方のヘッダーが設定されていること。
+func TestRubyGems_GemDownload_Block_HeadersPresent(t *testing.T) {
+	upstream := buildUpstream(makeVersionList("newgem", "0.0.1", 1, false))
+	defer upstream.Close()
+
+	eng := policy.NewEngine([]policy.Entry{{
+		Rule: rules.NewCooldown("cd", 7),
+	}})
+
+	r := chi.NewRouter()
+	buildAdapter(upstream.URL, eng).Mount(r)
+	proxy := httptest.NewServer(r)
+	defer proxy.Close()
+
+	resp, err := http.Get(proxy.URL + "/gems/newgem-0.0.1.gem")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.Header.Get("X-RegistoryGate-Block-Reason") == "" {
+		t.Error("X-RegistoryGate-Block-Reason header should be set on block")
+	}
+	if resp.Header.Get("X-RegistoryGate-Block-Detail") == "" {
+		t.Error("X-RegistoryGate-Block-Detail header should be set on block")
+	}
+}

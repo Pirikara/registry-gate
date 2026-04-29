@@ -69,6 +69,10 @@ func (vi VersionInfo) ToPackageFacts(name string) *facts.PackageFacts {
 			pf.AgeDays = time.Since(t).Hours() / 24
 		}
 	}
+	// downloads_count is lifetime total downloads for this version.
+	// Semantics differ from npm's 30-day window, but useful as a popularity signal.
+	d := vi.Downloads
+	pf.DownloadCount = &d
 	return pf
 }
 
