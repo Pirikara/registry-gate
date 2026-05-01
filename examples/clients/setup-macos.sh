@@ -2,8 +2,8 @@
 # Registry Gate — macOS client setup script.
 #
 # Designed to be run from MDM (Jamf, Intune for macOS, Workspace ONE) as root.
-# Configures npm / pip / RubyGems / Docker Desktop to use the proxy as the
-# system-default registry.
+# Configures npm / pip / RubyGems / Composer / Docker Desktop to use the proxy
+# as the system-default registry.
 #
 # Required:
 #   REGISTORY_GATE_URL — e.g. https://rg.corp.example.com
@@ -59,12 +59,23 @@ if ! grep -q "HOMEBREW_BOTTLE_DOMAIN" /etc/zshenv 2>/dev/null; then
   echo "export HOMEBREW_BOTTLE_DOMAIN=\"$URL\"" >> /etc/zshenv
 fi
 
-# Docker Desktop — per-user daemon.json (Docker Desktop reads from user's home)
-log "seeding Docker Desktop registry mirror per user"
+# Composer and Docker Desktop use per-user config locations.
+log "seeding Composer repository and Docker Desktop registry mirror per user"
 for HOME_DIR in /Users/*; do
   USER_NAME=$(basename "$HOME_DIR")
   [[ "$USER_NAME" == "Shared" || "$USER_NAME" == ".localized" ]] && continue
   [[ -d "$HOME_DIR" ]] || continue
+  install -d -m 0755 -o "$USER_NAME" "$HOME_DIR/.config/composer"
+  cat > "$HOME_DIR/.config/composer/config.json" <<EOF
+{
+  "repositories": [
+    {"type": "composer", "url": "$URL"},
+    {"packagist.org": false}
+  ]
+}
+EOF
+  chown "$USER_NAME" "$HOME_DIR/.config/composer/config.json"
+
   install -d -m 0755 -o "$USER_NAME" "$HOME_DIR/.docker"
   cat > "$HOME_DIR/.docker/daemon.json" <<EOF
 { "registry-mirrors": ["$URL"] }

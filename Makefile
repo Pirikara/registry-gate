@@ -13,7 +13,7 @@ setup:
 # All configuration is done by writing files directly — no tool commands are
 # invoked, so configure works even if the tool (yarn, pip, etc.) isn't installed.
 
-## configure: point npm / yarn / pip / gem / Docker at the local proxy
+## configure: point npm / yarn / pip / gem / Composer / Docker at the local proxy
 configure:
 	@echo "→ ~/.npmrc  (npm / pnpm / bun / yarn v1)"
 	@sed -i '' '/^registry=/d' ~/.npmrc 2>/dev/null; \
@@ -30,6 +30,9 @@ configure:
 	@mkdir -p ~/.bundle
 	@sed -i '' '/^BUNDLE_MIRROR/d' ~/.bundle/config 2>/dev/null; \
 	  printf 'BUNDLE_MIRROR__HTTPS://RUBYGEMS__ORG/: "%s"\n' "$(PROXY_URL)" >> ~/.bundle/config
+	@echo "→ ~/.config/composer/config.json  (Composer)"
+	@mkdir -p ~/.config/composer
+	@printf '{\n  "repositories": [\n    {"type": "composer", "url": "%s"},\n    {"packagist.org": false}\n  ]\n}\n' "$(PROXY_URL)" > ~/.config/composer/config.json
 	@echo "→ ~/.docker/daemon.json  (Docker Desktop — restart required)"
 	@mkdir -p ~/.docker
 	@printf '{"registry-mirrors":["%s"]}\n' "$(PROXY_URL)" > ~/.docker/daemon.json
@@ -47,6 +50,8 @@ unconfigure:
 	@printf ':sources:\n  - https://rubygems.org\n' > ~/.gemrc
 	@echo "→ ~/.bundle/config"
 	@sed -i '' '/^BUNDLE_MIRROR/d' ~/.bundle/config 2>/dev/null || true
+	@echo "→ ~/.config/composer/config.json"
+	@printf '{}\n' > ~/.config/composer/config.json
 	@echo "→ ~/.docker/daemon.json"
 	@printf '{}\n' > ~/.docker/daemon.json
 

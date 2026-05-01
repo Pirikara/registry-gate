@@ -11,7 +11,7 @@ func TestLoad_Defaults(t *testing.T) {
 	for _, k := range []string{
 		"PORT", "ADMIN_PORT", "DATABASE_URL",
 		"REDIS_ADDR", "REDIS_PASSWORD", "REDIS_DB",
-		"UPSTREAM_NPM", "UPSTREAM_PYPI", "UPSTREAM_GEMS", "UPSTREAM_BREW", "UPSTREAM_DOCKER",
+		"UPSTREAM_NPM", "UPSTREAM_PYPI", "UPSTREAM_GEMS", "UPSTREAM_COMPOSER", "UPSTREAM_BREW", "UPSTREAM_DOCKER",
 		"PROXY_NPM_BASE_URL",
 	} {
 		t.Setenv(k, "")
@@ -36,6 +36,7 @@ func TestLoad_Defaults(t *testing.T) {
 		{"Upstream.NPM", cfg.Upstream.NPM, "https://registry.npmjs.org"},
 		{"Upstream.PyPI", cfg.Upstream.PyPI, "https://pypi.org"},
 		{"Upstream.Gems", cfg.Upstream.Gems, "https://rubygems.org"},
+		{"Upstream.Composer", cfg.Upstream.Composer, "https://repo.packagist.org"},
 		{"Upstream.Brew", cfg.Upstream.Brew, "https://ghcr.io"},
 		{"Upstream.Docker", cfg.Upstream.Docker, "https://registry-1.docker.io"},
 		{"Proxy.NPMBaseURL", cfg.Proxy.NPMBaseURL, "http://localhost:8080"},
@@ -55,6 +56,7 @@ func TestLoad_EnvOverrides(t *testing.T) {
 	t.Setenv("REDIS_PASSWORD", "secret")
 	t.Setenv("REDIS_DB", "2")
 	t.Setenv("UPSTREAM_NPM", "https://npm.example.com")
+	t.Setenv("UPSTREAM_COMPOSER", "https://packagist.example.com")
 	t.Setenv("PROXY_NPM_BASE_URL", "https://proxy.example.com")
 
 	cfg, err := config.Load()
@@ -81,6 +83,9 @@ func TestLoad_EnvOverrides(t *testing.T) {
 	}
 	if cfg.Upstream.NPM != "https://npm.example.com" {
 		t.Errorf("Upstream.NPM: got %q", cfg.Upstream.NPM)
+	}
+	if cfg.Upstream.Composer != "https://packagist.example.com" {
+		t.Errorf("Upstream.Composer: got %q", cfg.Upstream.Composer)
 	}
 	if cfg.Proxy.NPMBaseURL != "https://proxy.example.com" {
 		t.Errorf("Proxy.NPMBaseURL: got %q", cfg.Proxy.NPMBaseURL)

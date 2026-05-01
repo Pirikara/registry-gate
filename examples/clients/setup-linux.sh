@@ -46,6 +46,25 @@ cat > /etc/gemrc <<EOF
   - $URL
 EOF
 
+# Composer — per-user global config for root and existing local users.
+log "seeding Composer repository per user"
+for HOME_DIR in /root /home/*; do
+  [[ -d "$HOME_DIR" ]] || continue
+  USER_NAME=$(basename "$HOME_DIR")
+  [[ "$HOME_DIR" == "/root" ]] && USER_NAME="root"
+  id "$USER_NAME" >/dev/null 2>&1 || continue
+  install -d -m 0755 -o "$USER_NAME" "$HOME_DIR/.config/composer"
+  cat > "$HOME_DIR/.config/composer/config.json" <<EOF
+{
+  "repositories": [
+    {"type": "composer", "url": "$URL"},
+    {"packagist.org": false}
+  ]
+}
+EOF
+  chown "$USER_NAME" "$HOME_DIR/.config/composer/config.json"
+done
+
 # Docker daemon — system-wide; requires daemon restart to take effect.
 if command -v docker >/dev/null 2>&1; then
   install -d -m 0755 /etc/docker

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 
 const API = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8081";
 
-const ECOSYSTEMS: Ecosystem[] = ["npm", "pypi", "rubygems", "homebrew", "docker"];
+const ECOSYSTEMS: Ecosystem[] = ["npm", "pypi", "rubygems", "composer", "homebrew", "docker"];
 
 function OutcomeBadge({ outcome }: { outcome: Outcome }) {
   return (

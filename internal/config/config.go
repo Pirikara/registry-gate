@@ -35,15 +35,16 @@ type RedisConfig struct {
 }
 
 type UpstreamConfig struct {
-	NPM    string
-	PyPI   string
-	Gems   string
-	Brew   string
-	Docker string
+	NPM      string
+	PyPI     string
+	Gems     string
+	Composer string
+	Brew     string
+	Docker   string
 }
 
 type ProxyConfig struct {
-	// Public base URL used to rewrite tarball URLs in metadata responses.
+	// Public base URL used to rewrite package archive URLs in metadata responses.
 	// e.g. "https://npm.registry-gate.example.com"
 	NPMBaseURL string
 }
@@ -65,11 +66,12 @@ func Load() (*Config, error) {
 			DB:       envInt("REDIS_DB", 0),
 		},
 		Upstream: UpstreamConfig{
-			NPM:    envStr("UPSTREAM_NPM", "https://registry.npmjs.org"),
-			PyPI:   envStr("UPSTREAM_PYPI", "https://pypi.org"),
-			Gems:   envStr("UPSTREAM_GEMS", "https://rubygems.org"),
-			Brew:   envStr("UPSTREAM_BREW", "https://ghcr.io"),
-			Docker: envStr("UPSTREAM_DOCKER", "https://registry-1.docker.io"),
+			NPM:      envStr("UPSTREAM_NPM", "https://registry.npmjs.org"),
+			PyPI:     envStr("UPSTREAM_PYPI", "https://pypi.org"),
+			Gems:     envStr("UPSTREAM_GEMS", "https://rubygems.org"),
+			Composer: envStr("UPSTREAM_COMPOSER", "https://repo.packagist.org"),
+			Brew:     envStr("UPSTREAM_BREW", "https://ghcr.io"),
+			Docker:   envStr("UPSTREAM_DOCKER", "https://registry-1.docker.io"),
 		},
 		Proxy: ProxyConfig{
 			NPMBaseURL: envStr("PROXY_NPM_BASE_URL", "http://localhost:8080"),

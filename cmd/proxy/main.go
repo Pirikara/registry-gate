@@ -15,10 +15,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	composeradapter "github.com/pirikara/registry-gate/internal/adapter/composer"
+	dockeradapter "github.com/pirikara/registry-gate/internal/adapter/docker"
+	brewadapter "github.com/pirikara/registry-gate/internal/adapter/homebrew"
 	npmadapter "github.com/pirikara/registry-gate/internal/adapter/npm"
 	pypiadapter "github.com/pirikara/registry-gate/internal/adapter/pypi"
-	brewadapter "github.com/pirikara/registry-gate/internal/adapter/homebrew"
-	dockeradapter "github.com/pirikara/registry-gate/internal/adapter/docker"
 	gemsadapter "github.com/pirikara/registry-gate/internal/adapter/rubygems"
 	"github.com/pirikara/registry-gate/internal/cache"
 	"github.com/pirikara/registry-gate/internal/config"
@@ -136,7 +137,17 @@ func run(logger *slog.Logger) error {
 		Logger:      logger,
 	})
 
+	composerAdp := composeradapter.NewAdapter(composeradapter.Config{
+		UpstreamURL: cfg.Upstream.Composer,
+		ProxyBase:   cfg.Proxy.NPMBaseURL,
+		PolicyEng:   eng,
+		Recorder:    recorder,
+		Cache:       appCache,
+		Logger:      logger,
+	})
+
 	r.Group(func(r chi.Router) {
+		composerAdp.Mount(r)
 		pypiAdp.Mount(r)
 		npmAdp.Mount(r)
 		brewAdp.Mount(r)

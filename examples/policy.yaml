@@ -21,14 +21,14 @@ rules:
   # ----------------------------------------------------------------- #
   # 2. Deny — explicit blocklist (e.g. for incidents).
   # ----------------------------------------------------------------- #
-  - deny: [npm:example-malicious-pkg]
+  - deny: [npm:example-malicious-pkg, composer:acme/bad-package]
 
   # ----------------------------------------------------------------- #
   # 3. Cooldown — block freshly published versions.
   # ----------------------------------------------------------------- #
   - cooldown:
       min_age_days: 7
-      ecosystems: [npm, pypi, rubygems]
+      ecosystems: [npm, pypi, rubygems, composer]
 
   # ----------------------------------------------------------------- #
   # 4. Trust downgrade — block versions whose trust signals regressed

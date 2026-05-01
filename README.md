@@ -10,7 +10,7 @@ Instead of signature scanning, Registry Gate applies **rule-based policies** def
 - **Trust downgrade** — block versions whose provenance or publisher trust signals regressed vs. the version baseline
 - **Allow / Deny** — explicit per-package overrides
 
-Supported ecosystems: npm, PyPI, RubyGems, Docker, Homebrew.
+Supported ecosystems: npm, PyPI, RubyGems, Composer/Packagist, Docker, Homebrew.
 
 ---
 
@@ -57,12 +57,38 @@ Then point your package manager at `http://localhost:8080`:
 ```bash
 npm install --registry http://localhost:8080 lodash
 pip install --index-url http://localhost:8080/pypi/simple/ requests
+composer config repositories.registry-gate composer http://localhost:8080
 ```
+
+For Composer enforcement, also disable the default Packagist repository in the
+project or global Composer config so resolution cannot fall back around the
+proxy:
+
+```json
+{
+  "repositories": [
+    {"type": "composer", "url": "http://localhost:8080"},
+    {"packagist.org": false}
+  ]
+}
+```
+
+If a project already has a `composer.lock` generated against public Packagist,
+run a lock metadata refresh after changing the repository config:
+
+```bash
+composer update --lock --no-install
+```
+
+This keeps package versions pinned, but rewrites lockfile metadata such as
+`dist.url` so later `composer install` requests pass through Registry Gate.
+Without this refresh, Composer installs from the URLs already stored in
+`composer.lock`, bypassing any registry proxy.
 
 For organisation-wide rollout via MDM (Jamf / Intune / Workspace ONE) or
 configuration management (Ansible), use the per-platform setup scripts in
 [`examples/clients/`](examples/clients/). They write system-default
-registry config for npm / pip / RubyGems / Docker and verify connectivity.
+registry config for npm / pip / RubyGems / Composer / Docker and verify connectivity.
 
 ---
 
@@ -79,7 +105,11 @@ All configuration is via environment variables.
 | `REDIS_ADDR` | *(none)* | Redis address for shared cache (multi-replica). Defaults to in-memory. |
 | `UPSTREAM_NPM` | `https://registry.npmjs.org` | Upstream npm registry |
 | `UPSTREAM_PYPI` | `https://pypi.org` | Upstream PyPI |
-| `PROXY_NPM_BASE_URL` | `http://localhost:8080` | Public base URL rewritten into npm metadata |
+| `UPSTREAM_GEMS` | `https://rubygems.org` | Upstream RubyGems |
+| `UPSTREAM_COMPOSER` | `https://repo.packagist.org` | Upstream Composer/Packagist repository |
+| `UPSTREAM_BREW` | `https://ghcr.io` | Upstream Homebrew bottle registry |
+| `UPSTREAM_DOCKER` | `https://registry-1.docker.io` | Upstream Docker registry |
+| `PROXY_NPM_BASE_URL` | `http://localhost:8080` | Public base URL rewritten into npm, PyPI, and Composer metadata |
 
 ### Attribution (optional)
 
@@ -103,12 +133,12 @@ rules:
   - allow: [npm:lodash, npm:react]
 
   # Hard deny.
-  - deny: [npm:example-malicious-pkg]
+  - deny: [npm:example-malicious-pkg, composer:acme/bad-package]
 
   # Block packages younger than 7 days.
   - cooldown:
       min_age_days: 7
-      ecosystems: [npm, pypi]
+      ecosystems: [npm, pypi, composer]
 
   # Block versions whose trust signals regressed vs. recent baseline.
   - trust_downgrade:
@@ -140,6 +170,7 @@ observable depends on what each registry exposes via its public API:
 | **npm** | ✅ | ✅ | ✅ | — | sigstore attestations + `_npmUser.trustedPublisher` from JSON API |
 | **PyPI** | ✅ | ✅ | — | — | PEP 740 endpoint (`/integrity/.../provenance`) — fetched per file |
 | **RubyGems** | ❌ | ✅ | ✅ | — | `metadata.rubygems_mfa_required` per version |
+| **Composer/Packagist** | ❌ | ❌ | — | — | p2 metadata exposes version time and dist/source URLs, but no publisher trust signal |
 | **Docker** | ⚠️ | ⚠️ | — | — | OCI annotations + heuristic for official `library/*` images |
 | **Homebrew** | ❌ | ⚠️ | — | — | Only `tap == homebrew/core` distinguishes official formulae |
 

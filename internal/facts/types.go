@@ -9,6 +9,7 @@ const (
 	EcosystemNPM      Ecosystem = "npm"
 	EcosystemPyPI     Ecosystem = "pypi"
 	EcosystemRubyGems Ecosystem = "rubygems"
+	EcosystemComposer Ecosystem = "composer"
 	EcosystemHomebrew Ecosystem = "homebrew"
 	EcosystemDocker   Ecosystem = "docker"
 )
@@ -41,7 +42,7 @@ func (t TrustLevel) String() string {
 // Fields are pointers so that nil means "not fetched / unavailable",
 // distinguishing it from an explicit false.
 type TrustSignals struct {
-	Publisher *PublisherSignal
+	Publisher  *PublisherSignal
 	Provenance *ProvenanceSignal
 	Signature  *SignatureSignal
 }
@@ -67,18 +68,18 @@ type SignatureSignal struct {
 
 // PackageFacts is the normalized fact set used by the policy engine.
 type PackageFacts struct {
-	Ecosystem           Ecosystem
-	Name                string
-	Version             string
-	PublishedAt         time.Time
-	AgeDays             float64
+	Ecosystem   Ecosystem
+	Name        string
+	Version     string
+	PublishedAt time.Time
+	AgeDays     float64
 	// DownloadCount is the download count reported by the registry.
 	// Semantics vary: npm provides last-30-day downloads; RubyGems provides
 	// lifetime total downloads. nil means the registry does not expose this data.
 	DownloadCount *int64
-	IsDeprecated        bool
-	Yanked              bool
-	Trust               *TrustSignals
+	IsDeprecated  bool
+	Yanked        bool
+	Trust         *TrustSignals
 
 	// Extension point: populated by future malware-DB integration.
 	Malicious []MaliciousIndicator

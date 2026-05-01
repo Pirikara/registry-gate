@@ -1,8 +1,8 @@
 # Registry Gate — Windows client setup script.
 #
 # Designed to be run from Intune (Windows PowerShell scripts feature) as
-# SYSTEM / Administrator. Configures npm, pip, RubyGems, and Docker Desktop
-# to use the proxy as the system-default registry.
+# SYSTEM / Administrator. Configures npm, pip, RubyGems, Composer, and Docker
+# Desktop to use the proxy as the system-default registry.
 #
 # Usage:
 #   .\setup-windows.ps1 -ProxyURL https://rg.corp.example.com
@@ -56,9 +56,20 @@ Log "writing $GemRc"
 "@ | Set-Content -Path $GemRc -Encoding ASCII
 
 # Docker Desktop — per-user daemon.json (Docker Desktop is per-user on Windows)
-Log 'seeding Docker Desktop registry mirror per user'
+Log 'seeding Composer repository and Docker Desktop registry mirror per user'
 Get-ChildItem 'C:\Users' -Directory | ForEach-Object {
     if ($_.Name -in @('Public', 'Default', 'Default User', 'All Users')) { return }
+    $composerDir = Join-Path $_.FullName 'AppData\Roaming\Composer'
+    New-Item -ItemType Directory -Force -Path $composerDir | Out-Null
+    @"
+{
+  "repositories": [
+    {"type": "composer", "url": "$Url"},
+    {"packagist.org": false}
+  ]
+}
+"@ | Set-Content -Path (Join-Path $composerDir 'config.json') -Encoding ASCII
+
     $dockerDir = Join-Path $_.FullName '.docker'
     New-Item -ItemType Directory -Force -Path $dockerDir | Out-Null
     "{ `"registry-mirrors`": [`"$Url`"] }" |
