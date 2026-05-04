@@ -188,6 +188,35 @@ func TestComposer_Dist_Allowed_Redirect(t *testing.T) {
 	}
 }
 
+func TestComposer_Dist_RejectsURLNotInUpstreamMetadata(t *testing.T) {
+	upstream := buildComposerUpstream(t, 30)
+	defer upstream.Close()
+
+	r := chi.NewRouter()
+	adp := buildAdapter(upstream.URL, "https://proxy.example.com", openEng())
+	adp.Mount(r)
+	proxy := httptest.NewServer(r)
+	defer proxy.Close()
+
+	distURL := composer.BuildDistProxyURL(proxy.URL, "acme/demo", "1.0.0", "https://evil.example/phish")
+	client := &http.Client{CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+		return http.ErrUseLastResponse
+	}}
+
+	resp, err := client.Get(distURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	}
+	if loc := resp.Header.Get("Location"); loc != "" {
+		t.Fatalf("unexpected redirect location: %s", loc)
+	}
+}
+
 func TestComposer_Dist_Blocked_403(t *testing.T) {
 	upstream := buildComposerUpstream(t, 1)
 	defer upstream.Close()

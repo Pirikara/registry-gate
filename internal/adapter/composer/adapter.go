@@ -166,8 +166,9 @@ func (a *Adapter) handleDist(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	packageName := r.URL.Query().Get("package")
 	version := r.URL.Query().Get("version")
-	upstreamURL, err := decodeUpstreamURL(r.URL.Query().Get("url"))
-	if err != nil || upstreamURL == "" {
+	upstreamURL, enrichedFacts, err := a.resolveDistRedirectURL(ctx, packageName, version, r.URL.Query().Get("url"))
+	if err != nil {
+		a.logger.WarnContext(ctx, "reject composer dist redirect", "pkg", packageName, "version", version, "err", err)
 		http.Error(w, "invalid dist url", http.StatusBadRequest)
 		return
 	}
@@ -177,10 +178,8 @@ func (a *Adapter) handleDist(w http.ResponseWriter, r *http.Request) {
 		Name:      packageName,
 		Version:   version,
 	}
-	if packageName != "" && version != "" {
-		if enriched := a.fetchVersionFacts(ctx, packageName, version); enriched != nil {
-			pf = enriched
-		}
+	if enrichedFacts != nil {
+		pf = enrichedFacts
 	}
 
 	result, err := a.policyEng.Evaluate(ctx, *pf)
@@ -218,6 +217,44 @@ func (a *Adapter) handleDist(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, upstreamURL, http.StatusFound)
+}
+
+func (a *Adapter) resolveDistRedirectURL(ctx context.Context, packageName, version, encodedURL string) (string, *facts.PackageFacts, error) {
+	requested, err := decodeAndValidateDistURL(encodedURL)
+	if err != nil {
+		return "", nil, err
+	}
+	if !validComposerPackageName(packageName) || version == "" {
+		return "", nil, fmt.Errorf("invalid package or version")
+	}
+
+	raw, status, err := a.fetchP2(ctx, packageName+".json")
+	if err != nil {
+		return "", nil, fmt.Errorf("fetch composer p2 metadata: %w", err)
+	}
+	if status != http.StatusOK {
+		return "", nil, fmt.Errorf("fetch composer p2 metadata: status %d", status)
+	}
+
+	meta, err := ParseP2Metadata(raw)
+	if err != nil {
+		return "", nil, err
+	}
+
+	for name, versions := range meta.Packages {
+		for _, candidate := range versions {
+			if candidate.Version() != version {
+				continue
+			}
+			redirectURL, ok := validatedDistURL(candidate)
+			if !ok || redirectURL.String() != requested.String() {
+				continue
+			}
+			return redirectURL.String(), candidate.ToPackageFacts(name), nil
+		}
+	}
+
+	return "", nil, fmt.Errorf("dist url is not present in upstream metadata")
 }
 
 func (a *Adapter) handleTransparent(w http.ResponseWriter, r *http.Request) {
@@ -328,4 +365,71 @@ func decodeUpstreamURL(encoded string) (string, error) {
 		return "", err
 	}
 	return string(decoded), nil
+}
+
+func decodeAndValidateDistURL(encoded string) (*url.URL, error) {
+	decoded, err := decodeUpstreamURL(encoded)
+	if err != nil {
+		return nil, err
+	}
+	return parseRedirectableDistURL(decoded)
+}
+
+func validatedDistURL(v *PackageVersion) (*url.URL, bool) {
+	dist, ok := v.Raw["dist"].(map[string]any)
+	if !ok {
+		return nil, false
+	}
+	raw, ok := dist["url"].(string)
+	if !ok {
+		return nil, false
+	}
+	u, err := parseRedirectableDistURL(raw)
+	return u, err == nil
+}
+
+func parseRedirectableDistURL(raw string) (*url.URL, error) {
+	if raw == "" {
+		return nil, fmt.Errorf("empty dist url")
+	}
+	if strings.Contains(raw, "\\") {
+		return nil, fmt.Errorf("dist url contains backslash")
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return nil, err
+	}
+	if u.Scheme != "https" && u.Scheme != "http" {
+		return nil, fmt.Errorf("dist url scheme must be http or https")
+	}
+	if u.Host == "" || u.Hostname() == "" {
+		return nil, fmt.Errorf("dist url host is required")
+	}
+	if u.User != nil {
+		return nil, fmt.Errorf("dist url userinfo is not allowed")
+	}
+	return u, nil
+}
+
+func validComposerPackageName(name string) bool {
+	parts := strings.Split(name, "/")
+	if len(parts) != 2 {
+		return false
+	}
+	for _, part := range parts {
+		if part == "" || part == "." || part == ".." {
+			return false
+		}
+		for _, r := range part {
+			if (r >= 'a' && r <= 'z') ||
+				(r >= '0' && r <= '9') ||
+				r == '-' ||
+				r == '_' ||
+				r == '.' {
+				continue
+			}
+			return false
+		}
+	}
+	return true
 }
