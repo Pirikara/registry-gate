@@ -13,11 +13,13 @@ import (
 type VersionList []VersionInfo
 
 type VersionInfo struct {
-	Number      string `json:"number"`
-	CreatedAt   string `json:"created_at"`
-	AuthorNames string `json:"authors"`
-	Yanked      bool   `json:"yanked"`
-	Downloads   int64  `json:"downloads_count"`
+	Number       string  `json:"number"`
+	CreatedAt    string  `json:"created_at"`
+	AuthorNames  string  `json:"authors"`
+	Yanked       bool    `json:"yanked"`
+	Downloads    int64   `json:"downloads_count"`
+	Platform     string  `json:"platform,omitempty"`
+	Dependencies [][]any `json:"dependencies"`
 }
 
 // VersionDetail is the response from
@@ -26,21 +28,26 @@ type VersionInfo struct {
 // rubygems_mfa_required flag, which is the only trust signal
 // rubygems.org currently surfaces via JSON API.
 type VersionDetail struct {
-	Name             string                 `json:"name"`
-	Number           string                 `json:"number"`
-	Authors          string                 `json:"authors"`
-	VersionCreatedAt string                 `json:"version_created_at"`
-	CreatedAt        string                 `json:"created_at"`
-	SourceCodeURI    string                 `json:"source_code_uri"`
-	Yanked           bool                   `json:"yanked"`
-	Metadata         map[string]string      `json:"metadata"`
-	Dependencies     map[string]any         `json:"dependencies,omitempty"`
+	Name             string            `json:"name"`
+	Number           string            `json:"number"`
+	Authors          string            `json:"authors"`
+	VersionCreatedAt string            `json:"version_created_at"`
+	CreatedAt        string            `json:"created_at"`
+	SourceCodeURI    string            `json:"source_code_uri"`
+	Yanked           bool              `json:"yanked"`
+	Metadata         map[string]string `json:"metadata"`
+	Dependencies     map[string]any    `json:"dependencies,omitempty"`
 }
 
 func ParseVersionList(data []byte) (VersionList, error) {
 	var vl VersionList
 	if err := json.Unmarshal(data, &vl); err != nil {
 		return nil, fmt.Errorf("parse version list: %w", err)
+	}
+	for i := range vl {
+		if vl[i].Dependencies == nil {
+			vl[i].Dependencies = [][]any{}
+		}
 	}
 	return vl, nil
 }

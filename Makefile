@@ -2,7 +2,7 @@ POLICY_FILE     ?= examples/policy.yaml
 DATABASE_URL    ?= file:./downloads.db
 PROXY_URL       ?= http://localhost:8080
 
-.PHONY: dev proxy admin ui setup configure unconfigure test build clean help
+.PHONY: dev proxy admin ui setup configure unconfigure test test-client-e2e build clean help
 
 ## setup: configure local package managers to use the proxy
 setup:
@@ -81,6 +81,10 @@ ui:
 ## test: run all Go tests
 test:
 	go test ./...
+
+## test-client-e2e: run real package-client E2E tests against local fake registries
+test-client-e2e:
+	REGISTRY_GATE_CLIENT_E2E=1 go test ./internal/e2e -run TestClientE2E -count=1 -v
 
 ## build: compile proxy and admin binaries
 build:

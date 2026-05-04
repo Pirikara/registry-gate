@@ -233,13 +233,19 @@ A Next.js dashboard is in [`web/admin-ui/`](web/admin-ui/).
 # run tests (no Docker required)
 go test -race ./...
 
+# run opt-in real client E2E tests against local fake registries
+REGISTRY_GATE_CLIENT_E2E=1 go test ./internal/e2e -run TestClientE2E -count=1 -v
+
 # build binaries
 go build ./cmd/proxy
 go build ./cmd/admin
 ```
 
-Tests use in-memory SQLite and httptest servers — no external services needed.
-CI runs on every push and pull request via GitHub Actions (`.github/workflows/ci.yml`).
+Default tests use in-memory SQLite and httptest servers — no external services
+needed. Client E2E tests also use local fake registries and synthetic packages,
+but they shell out to installed package managers (`go`, `npm`, `gem`) and are
+therefore opt-in. CI runs on every push and pull request via GitHub Actions
+(`.github/workflows/ci.yml`).
 
 ---
 
