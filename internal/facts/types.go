@@ -12,6 +12,10 @@ const (
 	EcosystemComposer Ecosystem = "composer"
 	EcosystemHomebrew Ecosystem = "homebrew"
 	EcosystemDocker   Ecosystem = "docker"
+	EcosystemMaven    Ecosystem = "maven"
+	EcosystemNuGet    Ecosystem = "nuget"
+	EcosystemCargo    Ecosystem = "cargo"
+	EcosystemGoMod    Ecosystem = "gomod"
 )
 
 // TrustLevel defines an ordered hierarchy of publisher trust.

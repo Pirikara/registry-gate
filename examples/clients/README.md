@@ -1,7 +1,9 @@
 # Client setup scripts
 
 These scripts configure a workstation to use Registry Gate as the default
-registry for npm / pip / RubyGems / Composer / Docker. They are designed to be
+registry for npm / pip / RubyGems / Composer / Docker. Maven, NuGet, Cargo, and
+Go modules are supported by the proxy, but are not yet written by these
+workstation bootstrap scripts. They are designed to be
 deployed via MDM (Jamf, Intune, Workspace ONE) or configuration management
 (Ansible).
 
@@ -107,6 +109,8 @@ pip config get global.index-url   # → https://rg.corp.example.com/pypi/simple/
 gem sources --list                # → contains rg.corp.example.com
 composer config repositories      # → contains rg.corp.example.com and disables packagist.org
 docker info | grep -i mirror      # → Registry Mirrors: rg.corp.example.com
+dotnet nuget list source          # → contains rg.corp.example.com/nuget/v3/index.json
+go env GOPROXY                    # → https://rg.corp.example.com/gomod,off
 ```
 
 For existing PHP projects, refresh `composer.lock` once after applying the

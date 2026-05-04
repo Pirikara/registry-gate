@@ -52,6 +52,30 @@ ecosystems:
       include:
         - "*"
 
+  - package-ecosystem: maven
+    cooldown:
+      default-days: 7
+      include:
+        - "*"
+
+  - package-ecosystem: nuget
+    cooldown:
+      default-days: 7
+      include:
+        - "*"
+
+  - package-ecosystem: cargo
+    cooldown:
+      default-days: 7
+      include:
+        - "*"
+
+  - package-ecosystem: gomod
+    cooldown:
+      default-days: 7
+      include:
+        - "*"
+
   # Popularity — block packages with very low download counts.
   # Useful for preventing typosquatting or obscure packages.
   # - package-ecosystem: npm

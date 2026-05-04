@@ -10,7 +10,8 @@ Instead of signature scanning, Registry Gate applies **rule-based policies** def
 - **Trust downgrade** — block versions whose provenance or publisher trust signals regressed vs. the version baseline
 - **Allow / Deny** — explicit per-package overrides
 
-Supported ecosystems: npm, PyPI, RubyGems, Composer/Packagist, Docker, Homebrew.
+Supported ecosystems: npm, PyPI, RubyGems, Composer/Packagist, Docker,
+Homebrew, Maven, NuGet, Cargo, Go modules.
 
 ---
 
@@ -58,7 +59,14 @@ Then point your package manager at `http://localhost:8080`:
 npm install --registry http://localhost:8080 lodash
 pip install --index-url http://localhost:8080/pypi/simple/ requests
 composer config repositories.registry-gate composer http://localhost:8080
+dotnet nuget add source http://localhost:8080/nuget/v3/index.json -n registry-gate
+GOPROXY=http://localhost:8080/gomod,off go list -m golang.org/x/text@latest
 ```
+
+Maven/Gradle should point at `http://localhost:8080/maven2/`; Cargo should use
+source replacement with `sparse+http://localhost:8080/cargo/index/`; Go should
+use `GOPROXY=http://localhost:8080/gomod,off` so the public `direct` fallback
+cannot bypass policy.
 
 For Composer enforcement, also disable the default Packagist repository in the
 project or global Composer config so resolution cannot fall back around the
@@ -109,7 +117,13 @@ All configuration is via environment variables.
 | `UPSTREAM_COMPOSER` | `https://repo.packagist.org` | Upstream Composer/Packagist repository |
 | `UPSTREAM_BREW` | `https://ghcr.io` | Upstream Homebrew bottle registry |
 | `UPSTREAM_DOCKER` | `https://registry-1.docker.io` | Upstream Docker registry |
-| `PROXY_NPM_BASE_URL` | `http://localhost:8080` | Public base URL rewritten into npm, PyPI, and Composer metadata |
+| `UPSTREAM_MAVEN` | `https://repo1.maven.org/maven2` | Upstream Maven repository |
+| `UPSTREAM_NUGET` | `https://api.nuget.org/v3/index.json` | Upstream NuGet V3 service index |
+| `UPSTREAM_CARGO_INDEX` | `https://index.crates.io` | Upstream Cargo sparse index |
+| `UPSTREAM_CARGO_API` | `https://crates.io` | Upstream crates.io API |
+| `UPSTREAM_GOMOD` | `https://proxy.golang.org` | Upstream Go module proxy |
+| `PROXY_BASE_URL` | `http://localhost:8080` | Public base URL rewritten into package metadata |
+| `PROXY_NPM_BASE_URL` | `http://localhost:8080` | Backward-compatible alias for `PROXY_BASE_URL` |
 
 ### Attribution (optional)
 
@@ -152,9 +166,11 @@ ecosystems:
 ```
 
 The `package-ecosystem` value accepts Registry Gate names (`npm`, `pypi`,
-`rubygems`, `composer`, `docker`, `homebrew`) and common Dependabot-style
-aliases (`pip`, `bundler`). See [`examples/policy.yaml`](examples/policy.yaml)
-for the full syntax.
+`rubygems`, `composer`, `docker`, `homebrew`, `maven`, `nuget`, `cargo`,
+`gomod`) and common aliases (`pip`, `bundler`, `gradle`, `go`). In Registry
+Gate, ecosystem means the registry/protocol family, so npm-compatible clients
+such as pnpm, Yarn, and Bun are governed by `npm`. See
+[`examples/policy.yaml`](examples/policy.yaml) for the full syntax.
 
 ### Rule kinds
 
@@ -179,6 +195,10 @@ observable depends on what each registry exposes via its public API:
 | **Composer/Packagist** | ❌ | ❌ | — | — | p2 metadata exposes version time and dist/source URLs, but no publisher trust signal |
 | **Docker** | ⚠️ | ⚠️ | — | — | OCI annotations + heuristic for official `library/*` images |
 | **Homebrew** | ❌ | ⚠️ | — | — | Only `tap == homebrew/core` distinguishes official formulae |
+| **Maven** | ❌ | ❌ | — | — | Cooldown uses artifact `Last-Modified` |
+| **NuGet** | ❌ | ❌ | — | ⚠️ | Registration metadata exposes publish time/listed state; repository signatures are not yet enforced |
+| **Cargo** | ❌ | ❌ | — | — | Sparse index exposes publish time and yanked state; crates.io trusted publishing can be added later |
+| **Go modules** | ❌ | ❌ | — | — | Go proxy `.info` exposes version publish time |
 
 For Homebrew, `trust-downgrade` is effectively a no-op — there is no per-version
 trust evidence to compare. Scope the rule to ecosystems where it has signal:

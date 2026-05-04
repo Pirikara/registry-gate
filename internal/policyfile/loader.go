@@ -178,6 +178,14 @@ func parsePackageEcosystem(s string) (facts.Ecosystem, error) {
 		return facts.EcosystemDocker, nil
 	case "brew", "homebrew":
 		return facts.EcosystemHomebrew, nil
+	case "maven", "gradle":
+		return facts.EcosystemMaven, nil
+	case "nuget":
+		return facts.EcosystemNuGet, nil
+	case "cargo", "crates", "crates.io":
+		return facts.EcosystemCargo, nil
+	case "go", "gomod", "go-modules":
+		return facts.EcosystemGoMod, nil
 	case "":
 		return "", fmt.Errorf("package-ecosystem is required")
 	default:

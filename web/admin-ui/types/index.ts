@@ -1,4 +1,14 @@
-export type Ecosystem = "npm" | "pypi" | "rubygems" | "composer" | "homebrew" | "docker";
+export type Ecosystem =
+  | "npm"
+  | "pypi"
+  | "rubygems"
+  | "composer"
+  | "homebrew"
+  | "docker"
+  | "maven"
+  | "nuget"
+  | "cargo"
+  | "gomod";
 export type Outcome = "allowed" | "blocked";
 
 export interface DownloadRecord {

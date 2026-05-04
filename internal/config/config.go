@@ -35,18 +35,24 @@ type RedisConfig struct {
 }
 
 type UpstreamConfig struct {
-	NPM      string
-	PyPI     string
-	Gems     string
-	Composer string
-	Brew     string
-	Docker   string
+	NPM        string
+	PyPI       string
+	Gems       string
+	Composer   string
+	Brew       string
+	Docker     string
+	Maven      string
+	NuGet      string
+	CargoIndex string
+	CargoAPI   string
+	GoMod      string
 }
 
 type ProxyConfig struct {
 	// Public base URL used to rewrite package archive URLs in metadata responses.
 	// e.g. "https://npm.registry-gate.example.com"
 	NPMBaseURL string
+	BaseURL    string
 }
 
 func Load() (*Config, error) {
@@ -66,15 +72,21 @@ func Load() (*Config, error) {
 			DB:       envInt("REDIS_DB", 0),
 		},
 		Upstream: UpstreamConfig{
-			NPM:      envStr("UPSTREAM_NPM", "https://registry.npmjs.org"),
-			PyPI:     envStr("UPSTREAM_PYPI", "https://pypi.org"),
-			Gems:     envStr("UPSTREAM_GEMS", "https://rubygems.org"),
-			Composer: envStr("UPSTREAM_COMPOSER", "https://repo.packagist.org"),
-			Brew:     envStr("UPSTREAM_BREW", "https://ghcr.io"),
-			Docker:   envStr("UPSTREAM_DOCKER", "https://registry-1.docker.io"),
+			NPM:        envStr("UPSTREAM_NPM", "https://registry.npmjs.org"),
+			PyPI:       envStr("UPSTREAM_PYPI", "https://pypi.org"),
+			Gems:       envStr("UPSTREAM_GEMS", "https://rubygems.org"),
+			Composer:   envStr("UPSTREAM_COMPOSER", "https://repo.packagist.org"),
+			Brew:       envStr("UPSTREAM_BREW", "https://ghcr.io"),
+			Docker:     envStr("UPSTREAM_DOCKER", "https://registry-1.docker.io"),
+			Maven:      envStr("UPSTREAM_MAVEN", "https://repo1.maven.org/maven2"),
+			NuGet:      envStr("UPSTREAM_NUGET", "https://api.nuget.org/v3/index.json"),
+			CargoIndex: envStr("UPSTREAM_CARGO_INDEX", "https://index.crates.io"),
+			CargoAPI:   envStr("UPSTREAM_CARGO_API", "https://crates.io"),
+			GoMod:      envStr("UPSTREAM_GOMOD", "https://proxy.golang.org"),
 		},
 		Proxy: ProxyConfig{
-			NPMBaseURL: envStr("PROXY_NPM_BASE_URL", "http://localhost:8080"),
+			BaseURL:    envStr("PROXY_BASE_URL", envStr("PROXY_NPM_BASE_URL", "http://localhost:8080")),
+			NPMBaseURL: envStr("PROXY_BASE_URL", envStr("PROXY_NPM_BASE_URL", "http://localhost:8080")),
 		},
 	}
 

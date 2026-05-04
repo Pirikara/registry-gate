@@ -119,6 +119,33 @@ ecosystems:
 	}
 }
 
+func TestLoadFromFile_RegistryFamilyAliases(t *testing.T) {
+	yaml := `
+version: 1
+ecosystems:
+  - package-ecosystem: gradle
+    deny: ["com.acme:bad"]
+  - package-ecosystem: go
+    deny: ["example.com/bad"]
+  - package-ecosystem: crates.io
+    deny: ["badcrate"]
+`
+	path := writeTemp(t, yaml)
+	loaded, err := policyfile.LoadFromFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"maven/deny", "gomod/deny", "cargo/deny"}
+	if len(loaded.Entries) != len(want) {
+		t.Fatalf("expected %d entries, got %d", len(want), len(loaded.Entries))
+	}
+	for i, id := range want {
+		if loaded.Entries[i].Rule.ID() != id {
+			t.Fatalf("entry %d rule id: got %s, want %s", i, loaded.Entries[i].Rule.ID(), id)
+		}
+	}
+}
+
 func TestLoadFromFile_AllowBypassesCooldown(t *testing.T) {
 	yaml := `
 version: 1

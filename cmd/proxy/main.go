@@ -15,10 +15,14 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	cargoadapter "github.com/pirikara/registry-gate/internal/adapter/cargo"
 	composeradapter "github.com/pirikara/registry-gate/internal/adapter/composer"
 	dockeradapter "github.com/pirikara/registry-gate/internal/adapter/docker"
+	gomodadapter "github.com/pirikara/registry-gate/internal/adapter/gomod"
 	brewadapter "github.com/pirikara/registry-gate/internal/adapter/homebrew"
+	mavenadapter "github.com/pirikara/registry-gate/internal/adapter/maven"
 	npmadapter "github.com/pirikara/registry-gate/internal/adapter/npm"
+	nugetadapter "github.com/pirikara/registry-gate/internal/adapter/nuget"
 	pypiadapter "github.com/pirikara/registry-gate/internal/adapter/pypi"
 	gemsadapter "github.com/pirikara/registry-gate/internal/adapter/rubygems"
 	"github.com/pirikara/registry-gate/internal/cache"
@@ -97,7 +101,7 @@ func run(logger *slog.Logger) error {
 
 	npmAdp := npmadapter.NewAdapter(npmadapter.Config{
 		UpstreamURL: cfg.Upstream.NPM,
-		ProxyBase:   cfg.Proxy.NPMBaseURL,
+		ProxyBase:   cfg.Proxy.BaseURL,
 		PolicyEng:   eng,
 		Recorder:    recorder,
 		Cache:       appCache,
@@ -106,7 +110,7 @@ func run(logger *slog.Logger) error {
 
 	pypiAdp := pypiadapter.NewAdapter(pypiadapter.Config{
 		UpstreamURL: cfg.Upstream.PyPI,
-		ProxyBase:   cfg.Proxy.NPMBaseURL,
+		ProxyBase:   cfg.Proxy.BaseURL,
 		PolicyEng:   eng,
 		Recorder:    recorder,
 		Cache:       appCache,
@@ -139,16 +143,53 @@ func run(logger *slog.Logger) error {
 
 	composerAdp := composeradapter.NewAdapter(composeradapter.Config{
 		UpstreamURL: cfg.Upstream.Composer,
-		ProxyBase:   cfg.Proxy.NPMBaseURL,
+		ProxyBase:   cfg.Proxy.BaseURL,
 		PolicyEng:   eng,
 		Recorder:    recorder,
 		Cache:       appCache,
 		Logger:      logger,
 	})
 
+	mavenAdp := mavenadapter.NewAdapter(mavenadapter.Config{
+		UpstreamURL: cfg.Upstream.Maven,
+		PolicyEng:   eng,
+		Recorder:    recorder,
+		Logger:      logger,
+	})
+
+	nugetAdp := nugetadapter.NewAdapter(nugetadapter.Config{
+		UpstreamIndexURL: cfg.Upstream.NuGet,
+		ProxyBase:        cfg.Proxy.BaseURL,
+		PolicyEng:        eng,
+		Recorder:         recorder,
+		Cache:            appCache,
+		Logger:           logger,
+	})
+
+	cargoAdp := cargoadapter.NewAdapter(cargoadapter.Config{
+		IndexURL:  cfg.Upstream.CargoIndex,
+		APIURL:    cfg.Upstream.CargoAPI,
+		ProxyBase: cfg.Proxy.BaseURL,
+		PolicyEng: eng,
+		Recorder:  recorder,
+		Cache:     appCache,
+		Logger:    logger,
+	})
+
+	gomodAdp := gomodadapter.NewAdapter(gomodadapter.Config{
+		UpstreamURL: cfg.Upstream.GoMod,
+		PolicyEng:   eng,
+		Recorder:    recorder,
+		Logger:      logger,
+	})
+
 	r.Group(func(r chi.Router) {
 		composerAdp.Mount(r)
 		pypiAdp.Mount(r)
+		mavenAdp.Mount(r)
+		nugetAdp.Mount(r)
+		cargoAdp.Mount(r)
+		gomodAdp.Mount(r)
 		npmAdp.Mount(r)
 		brewAdp.Mount(r)
 		dockerAdp.Mount(r)
