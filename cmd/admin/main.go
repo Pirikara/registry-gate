@@ -115,9 +115,9 @@ func run(logger *slog.Logger) error {
 func handleGetPolicy(loaded *policyfile.Loaded) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		view := struct {
-			Source  string      `json:"source"`
-			Version int         `json:"version"`
-			Rules   []ruleView  `json:"rules"`
+			Source  string     `json:"source"`
+			Version int        `json:"version"`
+			Rules   []ruleView `json:"rules"`
 		}{
 			Source:  loaded.Source,
 			Version: loaded.Version,
@@ -130,9 +130,11 @@ func handleGetPolicy(loaded *policyfile.Loaded) http.HandlerFunc {
 }
 
 type ruleView struct {
-	ID         string   `json:"id"`
-	Ecosystems []string `json:"ecosystems,omitempty"`
-	Packages   []string `json:"packages,omitempty"`
+	ID                     string   `json:"id"`
+	Ecosystems             []string `json:"ecosystems,omitempty"`
+	Packages               []string `json:"packages,omitempty"`
+	PackagePatterns        []string `json:"packagePatterns,omitempty"`
+	ExcludePackagePatterns []string `json:"excludePackagePatterns,omitempty"`
 }
 
 func toRuleView(e policy.Entry) ruleView {
@@ -142,6 +144,12 @@ func toRuleView(e policy.Entry) ruleView {
 	}
 	for _, p := range e.Match.Packages {
 		rv.Packages = append(rv.Packages, string(p.Ecosystem)+":"+p.Name)
+	}
+	for _, p := range e.Match.PackagePatterns {
+		rv.PackagePatterns = append(rv.PackagePatterns, string(p.Ecosystem)+":"+p.Pattern)
+	}
+	for _, p := range e.Match.ExcludePackagePatterns {
+		rv.ExcludePackagePatterns = append(rv.ExcludePackagePatterns, string(p.Ecosystem)+":"+p.Pattern)
 	}
 	return rv
 }

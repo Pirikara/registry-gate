@@ -119,50 +119,56 @@ Registry Gate has no built-in authentication. If you run it behind a reverse pro
 
 ## Policy file
 
-Rules are evaluated top-to-bottom. The first matching `allow` short-circuits
-and lets the package through. Otherwise every matching rule runs; any block
-denies the request.
-
-Each entry has exactly one rule kind as its top-level key.
+Policy version 1 groups settings by package ecosystem. Package names inside an
+ecosystem block are ecosystem-local and may use `*` globs. `allow` entries are
+evaluated before other settings in the same ecosystem.
 
 ```yaml
 version: 1
 
-rules:
-  # Allow comes first so it short-circuits the rest.
-  - allow: [npm:lodash, npm:react]
+ecosystems:
+  - package-ecosystem: npm
+    allow:
+      - "@company/*"
+    deny:
+      - example-malicious-pkg
 
-  # Hard deny.
-  - deny: [npm:example-malicious-pkg, composer:acme/bad-package]
+    cooldown:
+      default-days: 7
+      include:
+        - "*"
+      exclude:
+        - "@company/*"
 
-  # Block packages younger than 7 days.
-  - cooldown:
-      min_age_days: 7
-      ecosystems: [npm, pypi, composer]
-
-  # Block versions whose trust signals regressed vs. recent baseline.
-  - trust_downgrade:
-      ecosystems: [npm, pypi, rubygems]
+    trust-downgrade:
       watch: [provenance.present, publisher.type, publisher.two_factor]
-      on_unknown: warn   # warn | block | ignore
+      on-unknown: warn   # warn | block | ignore
+
+  - package-ecosystem: pypi
+    cooldown:
+      default-days: 5
+      include: [requests, numpy, pandas*, django]
+      exclude: [pandas]
 ```
 
-Package references use `ecosystem:name` shorthand. See
-[`examples/policy.yaml`](examples/policy.yaml) for the full syntax.
+The `package-ecosystem` value accepts Registry Gate names (`npm`, `pypi`,
+`rubygems`, `composer`, `docker`, `homebrew`) and common Dependabot-style
+aliases (`pip`, `bundler`). See [`examples/policy.yaml`](examples/policy.yaml)
+for the full syntax.
 
 ### Rule kinds
 
 | Kind | Description |
 |---|---|
-| `cooldown` | Block if the version was published less than `min_age_days` ago |
-| `trust_downgrade` | Block if watched trust fields regressed vs. other recent versions |
-| `allow` | Explicitly allow listed packages (bypass lower-priority rules) |
+| `cooldown` | Block if the version was published less than `default-days` ago |
+| `trust-downgrade` | Block if watched trust fields regressed vs. other recent versions |
+| `allow` | Explicitly allow listed package patterns (bypass lower-priority rules) |
 | `deny` | Explicitly block listed packages |
-| `min_downloads` | Block if the package's download count is below `threshold` (npm: last 30 days via downloads API; RubyGems: lifetime total) |
+| `min-downloads` | Block if the package's download count is below `threshold` (npm: last 30 days via downloads API; RubyGems: lifetime total) |
 
 ### Trust signal availability per ecosystem
 
-`trust_downgrade` compares signals across recent versions. What's actually
+`trust-downgrade` compares signals across recent versions. What's actually
 observable depends on what each registry exposes via its public API:
 
 | Registry | Provenance | Publisher | 2FA | Signature | Notes |
@@ -174,14 +180,14 @@ observable depends on what each registry exposes via its public API:
 | **Docker** | ⚠️ | ⚠️ | — | — | OCI annotations + heuristic for official `library/*` images |
 | **Homebrew** | ❌ | ⚠️ | — | — | Only `tap == homebrew/core` distinguishes official formulae |
 
-For Homebrew, `trust_downgrade` is effectively a no-op — there is no per-version
+For Homebrew, `trust-downgrade` is effectively a no-op — there is no per-version
 trust evidence to compare. Scope the rule to ecosystems where it has signal:
 
 ```yaml
-- trust_downgrade:
-    ecosystems: [npm, pypi, rubygems]
+- package-ecosystem: npm
+  trust-downgrade:
     watch: [provenance.present, publisher.two_factor]
-    on_unknown: warn
+    on-unknown: warn
 ```
 
 ---

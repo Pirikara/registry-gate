@@ -1,6 +1,10 @@
 package policy
 
-import "github.com/pirikara/registry-gate/internal/facts"
+import (
+	"strings"
+
+	"github.com/pirikara/registry-gate/internal/facts"
+)
 
 // Decision is the outcome of policy evaluation.
 type Decision int
@@ -35,8 +39,10 @@ type Outcome struct {
 // Match filters which packages an entry applies to.
 // Empty fields = match everything.
 type Match struct {
-	Ecosystems []facts.Ecosystem
-	Packages   []PackageRef
+	Ecosystems             []facts.Ecosystem
+	Packages               []PackageRef
+	PackagePatterns        []PackagePattern
+	ExcludePackagePatterns []PackagePattern
 }
 
 func (m Match) Matches(f facts.PackageFacts) bool {
@@ -53,12 +59,33 @@ func (m Match) Matches(f facts.PackageFacts) bool {
 		}
 	}
 	if len(m.Packages) > 0 {
+		matched := false
 		for _, p := range m.Packages {
 			if p.Ecosystem == f.Ecosystem && p.Name == f.Name {
-				return true
+				matched = true
+				break
 			}
 		}
-		return false
+		if !matched {
+			return false
+		}
+	}
+	if len(m.PackagePatterns) > 0 {
+		matched := false
+		for _, p := range m.PackagePatterns {
+			if p.Ecosystem == f.Ecosystem && MatchPackagePattern(p.Pattern, f.Name) {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return false
+		}
+	}
+	for _, p := range m.ExcludePackagePatterns {
+		if p.Ecosystem == f.Ecosystem && MatchPackagePattern(p.Pattern, f.Name) {
+			return false
+		}
 	}
 	return true
 }
@@ -66,6 +93,41 @@ func (m Match) Matches(f facts.PackageFacts) bool {
 type PackageRef struct {
 	Ecosystem facts.Ecosystem
 	Name      string
+}
+
+type PackagePattern struct {
+	Ecosystem facts.Ecosystem
+	Pattern   string
+}
+
+// MatchPackagePattern matches Dependabot-style package globs where '*' means
+// any string, including separators in scoped npm names such as @scope/pkg.
+func MatchPackagePattern(pattern, name string) bool {
+	if pattern == "*" {
+		return true
+	}
+	if !strings.Contains(pattern, "*") {
+		return pattern == name
+	}
+
+	parts := strings.Split(pattern, "*")
+	if parts[0] != "" {
+		if !strings.HasPrefix(name, parts[0]) {
+			return false
+		}
+		name = strings.TrimPrefix(name, parts[0])
+	}
+
+	for _, part := range parts[1 : len(parts)-1] {
+		idx := strings.Index(name, part)
+		if idx < 0 {
+			return false
+		}
+		name = name[idx+len(part):]
+	}
+
+	last := parts[len(parts)-1]
+	return last == "" || strings.HasSuffix(name, last)
 }
 
 // Entry is one rule with its optional match scope. Engine evaluates entries

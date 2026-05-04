@@ -3,51 +3,59 @@
 # Mount this file into the proxy and admin containers and point POLICY_FILE
 # at it (e.g. POLICY_FILE=/etc/registry-gate/policy.yaml).
 #
-# Rules are evaluated top-to-bottom. The first matching `allow` rule short-
-# circuits and lets the package through. Otherwise, every matching rule is
-# evaluated; if any of them blocks, the request is denied.
-#
-# Each entry has exactly one rule kind as its top-level key.
+# Version 1 groups policy by package ecosystem. Package names inside each
+# ecosystem are ecosystem-local and may use '*' globs, similar to Dependabot.
+# `allow` is evaluated before the other settings in the same ecosystem.
 
 version: 1
 
-rules:
-  # ----------------------------------------------------------------- #
-  # 1. Allow — bypass the rest of the policy for trusted packages.
-  #    Put these first so they short-circuit other rules.
-  # ----------------------------------------------------------------- #
-  - allow: []
-
-  # ----------------------------------------------------------------- #
-  # 2. Deny — explicit blocklist (e.g. for incidents).
-  # ----------------------------------------------------------------- #
-  - deny: [npm:example-malicious-pkg, composer:acme/bad-package]
-
-  # ----------------------------------------------------------------- #
-  # 3. Cooldown — block freshly published versions.
-  # ----------------------------------------------------------------- #
-  - cooldown:
-      min_age_days: 7
-      ecosystems: [npm, pypi, rubygems, composer]
-
-  # ----------------------------------------------------------------- #
-  # 4. Trust downgrade — block versions whose trust signals regressed
-  #    relative to recent baseline versions.
-  #    Scope to ecosystems where the signal is actually available
-  #    (see README "Trust signal availability per ecosystem").
-  # ----------------------------------------------------------------- #
-  - trust_downgrade:
-      ecosystems: [npm, pypi, rubygems]
+ecosystems:
+  - package-ecosystem: npm
+    allow:
+      - "@company/*"
+    deny:
+      - example-malicious-pkg
+    cooldown:
+      default-days: 7
+      include:
+        - "*"
+      exclude:
+        - "@company/*"
+    trust-downgrade:
       watch:
         - provenance.present
         - publisher.type
         - publisher.two_factor
-      on_unknown: warn
+      on-unknown: warn
 
-  # ----------------------------------------------------------------- #
-  # 5. Popularity — block packages with very low download counts.
-  #    Useful for preventing typosquatting or obscure packages.
-  # ----------------------------------------------------------------- #
-  # - min_downloads:
-  #     ecosystems: [npm, pypi, rubygems]
+  - package-ecosystem: pypi
+    cooldown:
+      default-days: 7
+      include:
+        - "*"
+
+  - package-ecosystem: rubygems
+    cooldown:
+      default-days: 7
+      include:
+        - "*"
+    trust-downgrade:
+      watch:
+        - publisher.two_factor
+      on-unknown: warn
+
+  - package-ecosystem: composer
+    deny:
+      - acme/bad-package
+    cooldown:
+      default-days: 7
+      include:
+        - "*"
+
+  # Popularity — block packages with very low download counts.
+  # Useful for preventing typosquatting or obscure packages.
+  # - package-ecosystem: npm
+  #   min-downloads:
   #     threshold: 1000
+  #     include:
+  #       - "*"

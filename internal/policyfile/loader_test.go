@@ -1,10 +1,14 @@
 package policyfile_test
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
+	"github.com/pirikara/registry-gate/internal/facts"
+	"github.com/pirikara/registry-gate/internal/policy"
 	"github.com/pirikara/registry-gate/internal/policyfile"
 )
 
@@ -28,43 +32,24 @@ func TestLoadFromFile_Empty(t *testing.T) {
 	}
 }
 
-func TestLoadFromFile_BasicCooldown(t *testing.T) {
-	yaml := `
-version: 1
-rules:
-  - cooldown:
-      min_age_days: 7
-      ecosystems: [npm]
-`
-	path := writeTemp(t, yaml)
-	loaded, err := policyfile.LoadFromFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(loaded.Entries) != 1 {
-		t.Fatalf("expected 1 entry, got %d", len(loaded.Entries))
-	}
-	if loaded.Entries[0].Rule.ID() != "cooldown/0" {
-		t.Errorf("expected auto-generated rule id, got %s", loaded.Entries[0].Rule.ID())
-	}
-	if len(loaded.Entries[0].Match.Ecosystems) != 1 {
-		t.Errorf("expected 1 ecosystem in match, got %d", len(loaded.Entries[0].Match.Ecosystems))
-	}
-}
-
 func TestLoadFromFile_AllRuleKinds(t *testing.T) {
 	yaml := `
 version: 1
-rules:
-  - cooldown:
-      min_age_days: 1
-  - min_downloads:
+ecosystems:
+  - package-ecosystem: npm
+    allow:
+      - lodash
+    deny:
+      - evil-pkg
+    cooldown:
+      default-days: 1
+      include:
+        - "*"
+    min-downloads:
       threshold: 100
-  - allow: [npm:lodash]
-  - deny:  [npm:evil-pkg]
-  - trust_downgrade:
+    trust-downgrade:
       watch: [provenance.present, publisher.type]
-      on_unknown: warn
+      on-unknown: warn
 `
 	path := writeTemp(t, yaml)
 	loaded, err := policyfile.LoadFromFile(path)
@@ -76,84 +61,151 @@ rules:
 	}
 }
 
-func TestLoadFromFile_PackageShorthand(t *testing.T) {
+func TestLoadFromFile_EcosystemCooldown(t *testing.T) {
 	yaml := `
-rules:
-  - allow: [npm:lodash, pypi:requests]
+version: 1
+ecosystems:
+  - package-ecosystem: pip
+    cooldown:
+      default-days: 5
+      include:
+        - requests
+        - pandas*
+      exclude:
+        - pandas
 `
 	path := writeTemp(t, yaml)
 	loaded, err := policyfile.LoadFromFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pkgs := loaded.Entries[0].Match.Packages
-	if len(pkgs) != 2 {
-		t.Fatalf("expected 2 packages, got %d", len(pkgs))
+	if loaded.Version != 1 {
+		t.Fatalf("expected version 1, got %d", loaded.Version)
 	}
-	if pkgs[0].Name != "lodash" || string(pkgs[0].Ecosystem) != "npm" {
-		t.Errorf("first package: %+v", pkgs[0])
+	if len(loaded.Entries) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(loaded.Entries))
 	}
-	if pkgs[1].Name != "requests" || string(pkgs[1].Ecosystem) != "pypi" {
-		t.Errorf("second package: %+v", pkgs[1])
+	if loaded.Entries[0].Rule.ID() != "pypi/cooldown" {
+		t.Fatalf("expected pypi/cooldown rule id, got %s", loaded.Entries[0].Rule.ID())
+	}
+
+	eng := policy.NewEngine(loaded.Entries)
+	res, err := eng.Evaluate(context.Background(), facts.PackageFacts{
+		Ecosystem:   facts.EcosystemPyPI,
+		Name:        "pandas-ext",
+		Version:     "1.0.0",
+		PublishedAt: time.Now().AddDate(0, 0, -1),
+		AgeDays:     1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Decision != policy.DecisionBlock {
+		t.Fatalf("expected included young package to block, got %s", res.Decision)
+	}
+
+	res, err = eng.Evaluate(context.Background(), facts.PackageFacts{
+		Ecosystem:   facts.EcosystemPyPI,
+		Name:        "pandas",
+		Version:     "1.0.0",
+		PublishedAt: time.Now().AddDate(0, 0, -1),
+		AgeDays:     1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Decision != policy.DecisionAllow {
+		t.Fatalf("expected exclude to bypass cooldown, got %s", res.Decision)
 	}
 }
 
-func TestLoadFromFile_PackageShorthand_Invalid(t *testing.T) {
+func TestLoadFromFile_AllowBypassesCooldown(t *testing.T) {
 	yaml := `
-rules:
-  - allow: [lodash]
+version: 1
+ecosystems:
+  - package-ecosystem: npm
+    allow:
+      - "@company/*"
+    cooldown:
+      default-days: 7
+      include:
+        - "*"
 `
 	path := writeTemp(t, yaml)
-	if _, err := policyfile.LoadFromFile(path); err == nil {
-		t.Error("expected error for missing 'ecosystem:' prefix")
+	loaded, err := policyfile.LoadFromFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	eng := policy.NewEngine(loaded.Entries)
+	res, err := eng.Evaluate(context.Background(), facts.PackageFacts{
+		Ecosystem:   facts.EcosystemNPM,
+		Name:        "@company/pkg",
+		Version:     "1.0.0",
+		PublishedAt: time.Now().AddDate(0, 0, -1),
+		AgeDays:     1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Decision != policy.DecisionAllow {
+		t.Fatalf("expected allow pattern to bypass cooldown, got %s", res.Decision)
 	}
 }
 
-func TestLoadFromFile_CooldownRequiresPositive(t *testing.T) {
+func TestLoadFromFile_CooldownRejectsSemverFields(t *testing.T) {
 	yaml := `
-rules:
-  - cooldown:
-      min_age_days: 0
+version: 1
+ecosystems:
+  - package-ecosystem: pypi
+    cooldown:
+      default-days: 5
+      semver-patch-days: 3
 `
 	path := writeTemp(t, yaml)
 	if _, err := policyfile.LoadFromFile(path); err == nil {
-		t.Error("expected error for non-positive min_age_days")
+		t.Error("expected error for unsupported semver cooldown field")
 	}
 }
 
-func TestLoadFromFile_NoRuleKindSet(t *testing.T) {
+func TestLoadFromFile_CooldownRequiresPositiveDefaultDays(t *testing.T) {
 	yaml := `
-rules:
-  - {}
+version: 1
+ecosystems:
+  - package-ecosystem: npm
+    cooldown:
+      default-days: 0
 `
 	path := writeTemp(t, yaml)
 	if _, err := policyfile.LoadFromFile(path); err == nil {
-		t.Error("expected error for entry with no rule kind")
-	}
-}
-
-func TestLoadFromFile_MultipleRuleKindsSet(t *testing.T) {
-	yaml := `
-rules:
-  - cooldown:
-      min_age_days: 7
-    deny: [npm:evil]
-`
-	path := writeTemp(t, yaml)
-	if _, err := policyfile.LoadFromFile(path); err == nil {
-		t.Error("expected error for entry with multiple kinds set")
+		t.Error("expected error for non-positive default-days")
 	}
 }
 
 func TestLoadFromFile_TrustDowngrade_InvalidWatch(t *testing.T) {
 	yaml := `
-rules:
-  - trust_downgrade:
+version: 1
+ecosystems:
+  - package-ecosystem: npm
+    trust-downgrade:
       watch: [bogus.field]
 `
 	path := writeTemp(t, yaml)
 	if _, err := policyfile.LoadFromFile(path); err == nil {
 		t.Error("expected error for invalid watch field")
+	}
+}
+
+func TestLoadFromFile_RejectsRulesSchema(t *testing.T) {
+	yaml := `
+version: 1
+rules:
+  - cooldown:
+      min_age_days: 7
+`
+	path := writeTemp(t, yaml)
+	if _, err := policyfile.LoadFromFile(path); err == nil {
+		t.Error("expected error for removed rules schema")
 	}
 }
 

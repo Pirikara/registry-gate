@@ -34,4 +34,6 @@ export interface RuleSummary {
   id: string;
   ecosystems?: string[];
   packages?: string[];
+  packagePatterns?: string[];
+  excludePackagePatterns?: string[];
 }

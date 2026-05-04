@@ -4,7 +4,6 @@
 package policyfile
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -43,63 +42,50 @@ func LoadFromFile(path string) (*Loaded, error) {
 
 // yamlDoc mirrors the on-disk YAML structure.
 //
-// Schema (flat, declaration-ordered):
-//
 //	version: 1
-//	rules:
-//	  - allow: [npm:lodash, npm:react]
-//	  - deny:  [npm:example-malicious-pkg]
-//	  - cooldown:
-//	      min_age_days: 7
-//	      ecosystems: [npm, pypi]
-//	  - trust_downgrade:
-//	      ecosystems: [npm, pypi, rubygems]
-//	      watch: [provenance.present, publisher.two_factor]
-//	      on_unknown: warn
-//	  - min_downloads:
-//	      threshold: 1000
-//	      ecosystems: [npm]
+//	ecosystems:
+//	  - package-ecosystem: pypi
+//	    allow: [django]
+//	    deny: [bad-package]
+//	    cooldown:
+//	      default-days: 7
+//	      include: ["*"]
+//	      exclude: [internal-*]
 type yamlDoc struct {
-	Version int             `yaml:"version"`
-	Rules   []yamlRuleEntry `yaml:"rules"`
+	Version    int                   `yaml:"version"`
+	Ecosystems []yamlEcosystemPolicy `yaml:"ecosystems"`
 }
 
-// yamlRuleEntry uses kind-as-key style: exactly one field must be set per
-// entry. The field that is set determines the rule kind.
-type yamlRuleEntry struct {
-	Allow          []string            `yaml:"allow,omitempty"`
-	Deny           []string            `yaml:"deny,omitempty"`
-	Cooldown       *yamlCooldown       `yaml:"cooldown,omitempty"`
-	MinDownloads   *yamlMinDownloads   `yaml:"min_downloads,omitempty"`
-	TrustDowngrade *yamlTrustDowngrade `yaml:"trust_downgrade,omitempty"`
-}
-
-// yamlMatch is embedded into rules that need an optional package filter.
-// Empty ecosystems / packages = match everything.
-type yamlMatch struct {
-	Ecosystems []string `yaml:"ecosystems,omitempty"`
-	Packages   []string `yaml:"packages,omitempty"`
+type yamlEcosystemPolicy struct {
+	PackageEcosystem string              `yaml:"package-ecosystem"`
+	Allow            []string            `yaml:"allow,omitempty"`
+	Deny             []string            `yaml:"deny,omitempty"`
+	Cooldown         *yamlCooldown       `yaml:"cooldown,omitempty"`
+	MinDownloads     *yamlMinDownloads   `yaml:"min-downloads,omitempty"`
+	TrustDowngrade   *yamlTrustDowngrade `yaml:"trust-downgrade,omitempty"`
 }
 
 type yamlCooldown struct {
-	yamlMatch  `yaml:",inline"`
-	MinAgeDays float64 `yaml:"min_age_days"`
+	DefaultDays     float64  `yaml:"default-days"`
+	Include         []string `yaml:"include,omitempty"`
+	Exclude         []string `yaml:"exclude,omitempty"`
+	SemverMajorDays *float64 `yaml:"semver-major-days,omitempty"`
+	SemverMinorDays *float64 `yaml:"semver-minor-days,omitempty"`
+	SemverPatchDays *float64 `yaml:"semver-patch-days,omitempty"`
 }
 
 type yamlMinDownloads struct {
-	yamlMatch `yaml:",inline"`
-	Threshold int64 `yaml:"threshold"`
+	Threshold int64    `yaml:"threshold"`
+	Include   []string `yaml:"include,omitempty"`
+	Exclude   []string `yaml:"exclude,omitempty"`
 }
 
 type yamlTrustDowngrade struct {
-	yamlMatch `yaml:",inline"`
 	Watch     []string `yaml:"watch"`
-	OnUnknown string   `yaml:"on_unknown,omitempty"`
+	OnUnknown string   `yaml:"on-unknown,omitempty"`
+	Include   []string `yaml:"include,omitempty"`
+	Exclude   []string `yaml:"exclude,omitempty"`
 }
-
-// errSkipEntry is returned by toEntry when the entry should be silently ignored
-// (e.g. allow: [] — an explicitly empty list is a no-op).
-var errSkipEntry = errors.New("skip")
 
 func parsePolicyYAML(raw []byte) (*Loaded, error) {
 	var doc yamlDoc
@@ -108,166 +94,186 @@ func parsePolicyYAML(raw []byte) (*Loaded, error) {
 	}
 
 	out := &Loaded{Version: doc.Version}
-	for i, entry := range doc.Rules {
-		converted, err := toEntry(entry, i)
-		if errors.Is(err, errSkipEntry) {
-			continue
-		}
+	if doc.Version != 1 {
+		return nil, fmt.Errorf("unsupported policy version %d", doc.Version)
+	}
+	if len(doc.Ecosystems) == 0 {
+		return nil, fmt.Errorf("version 1 requires ecosystems")
+	}
+	for i, ecoPolicy := range doc.Ecosystems {
+		entries, err := toEcosystemEntries(ecoPolicy)
 		if err != nil {
-			return nil, fmt.Errorf("rules[%d]: %w", i, err)
+			return nil, fmt.Errorf("ecosystems[%d]: %w", i, err)
 		}
-		out.Entries = append(out.Entries, converted)
+		out.Entries = append(out.Entries, entries...)
 	}
 	return out, nil
 }
 
-func toEntry(e yamlRuleEntry, idx int) (policy.Entry, error) {
-	// Detect entries where a key is present but the list is empty:
-	// allow: []  or  deny: []  → nil=false, len=0. Silently skip these.
-	if e.Allow != nil && len(e.Allow) == 0 {
-		return policy.Entry{}, errSkipEntry
-	}
-	if e.Deny != nil && len(e.Deny) == 0 {
-		return policy.Entry{}, errSkipEntry
+func toEcosystemEntries(in yamlEcosystemPolicy) ([]policy.Entry, error) {
+	eco, err := parsePackageEcosystem(in.PackageEcosystem)
+	if err != nil {
+		return nil, err
 	}
 
-	set := 0
-	if len(e.Allow) > 0 {
-		set++
-	}
-	if len(e.Deny) > 0 {
-		set++
-	}
-	if e.Cooldown != nil {
-		set++
-	}
-	if e.MinDownloads != nil {
-		set++
-	}
-	if e.TrustDowngrade != nil {
-		set++
-	}
-	if set == 0 {
-		return policy.Entry{}, fmt.Errorf("entry has no rule kind")
-	}
-	if set > 1 {
-		return policy.Entry{}, fmt.Errorf("entry has multiple rule kinds — exactly one must be set")
-	}
-
-	switch {
-	case len(e.Allow) > 0:
-		refs, err := parsePackageRefs(e.Allow)
+	var out []policy.Entry
+	if len(in.Allow) > 0 {
+		patterns, err := ecosystemPatterns(eco, in.Allow)
 		if err != nil {
-			return policy.Entry{}, fmt.Errorf("allow: %w", err)
+			return nil, fmt.Errorf("allow: %w", err)
 		}
-		// allow / deny use the package list itself as their match scope.
-		return policy.Entry{
-			Match: scopeFromRefs(refs),
-			Rule:  rules.NewAllow(autoID("allow", idx), refs),
-		}, nil
-
-	case len(e.Deny) > 0:
-		refs, err := parsePackageRefs(e.Deny)
-		if err != nil {
-			return policy.Entry{}, fmt.Errorf("deny: %w", err)
-		}
-		return policy.Entry{
-			Match: scopeFromRefs(refs),
-			Rule:  rules.NewDeny(autoID("deny", idx), refs),
-		}, nil
-
-	case e.Cooldown != nil:
-		if e.Cooldown.MinAgeDays <= 0 {
-			return policy.Entry{}, fmt.Errorf("cooldown.min_age_days must be > 0")
-		}
-		match, err := buildMatch(e.Cooldown.yamlMatch)
-		if err != nil {
-			return policy.Entry{}, fmt.Errorf("cooldown: %w", err)
-		}
-		return policy.Entry{
-			Match: match,
-			Rule:  rules.NewCooldown(autoID("cooldown", idx), e.Cooldown.MinAgeDays),
-		}, nil
-
-	case e.MinDownloads != nil:
-		if e.MinDownloads.Threshold <= 0 {
-			return policy.Entry{}, fmt.Errorf("min_downloads.threshold must be > 0")
-		}
-		match, err := buildMatch(e.MinDownloads.yamlMatch)
-		if err != nil {
-			return policy.Entry{}, fmt.Errorf("min_downloads: %w", err)
-		}
-		return policy.Entry{
-			Match: match,
-			Rule:  rules.NewMinDownloads(autoID("min_downloads", idx), e.MinDownloads.Threshold),
-		}, nil
-
-	case e.TrustDowngrade != nil:
-		match, err := buildMatch(e.TrustDowngrade.yamlMatch)
-		if err != nil {
-			return policy.Entry{}, fmt.Errorf("trust_downgrade: %w", err)
-		}
-		watch := make([]rules.TrustDowngradeWatch, 0, len(e.TrustDowngrade.Watch))
-		for _, w := range e.TrustDowngrade.Watch {
-			tw, ok := parseTrustWatch(w)
-			if !ok {
-				return policy.Entry{}, fmt.Errorf("trust_downgrade: unknown watch field %q", w)
-			}
-			watch = append(watch, tw)
-		}
-		ou, err := parseOnUnknown(e.TrustDowngrade.OnUnknown)
-		if err != nil {
-			return policy.Entry{}, fmt.Errorf("trust_downgrade: %w", err)
-		}
-		return policy.Entry{
-			Match: match,
-			Rule:  rules.NewTrustDowngrade(autoID("trust_downgrade", idx), watch, ou),
-		}, nil
-	}
-
-	return policy.Entry{}, fmt.Errorf("unreachable")
-}
-
-// parsePackageRefs converts a list of `ecosystem:name` shorthand strings
-// into structured PackageRefs.
-func parsePackageRefs(in []string) ([]policy.PackageRef, error) {
-	out := make([]policy.PackageRef, 0, len(in))
-	for _, s := range in {
-		eco, name, ok := strings.Cut(s, ":")
-		if !ok || eco == "" || name == "" {
-			return nil, fmt.Errorf("package ref %q must be in 'ecosystem:name' form", s)
-		}
-		out = append(out, policy.PackageRef{
-			Ecosystem: facts.Ecosystem(eco),
-			Name:      name,
+		out = append(out, policy.Entry{
+			Match: matchForPatterns(eco, patterns, nil),
+			Rule:  rules.NewAllowPatterns(ecosystemRuleID(eco, "allow"), patterns),
 		})
 	}
-	return out, nil
-}
-
-// scopeFromRefs builds a Match where ecosystems/packages are derived from a
-// package list. Used by allow/deny so the rule only fires for those packages.
-func scopeFromRefs(refs []policy.PackageRef) policy.Match {
-	return policy.Match{Packages: refs}
-}
-
-func buildMatch(m yamlMatch) (policy.Match, error) {
-	out := policy.Match{}
-	for _, e := range m.Ecosystems {
-		out.Ecosystems = append(out.Ecosystems, facts.Ecosystem(e))
-	}
-	if len(m.Packages) > 0 {
-		refs, err := parsePackageRefs(m.Packages)
+	if len(in.Deny) > 0 {
+		patterns, err := ecosystemPatterns(eco, in.Deny)
 		if err != nil {
-			return policy.Match{}, err
+			return nil, fmt.Errorf("deny: %w", err)
 		}
-		out.Packages = refs
+		out = append(out, policy.Entry{
+			Match: matchForPatterns(eco, patterns, nil),
+			Rule:  rules.NewDenyPatterns(ecosystemRuleID(eco, "deny"), patterns),
+		})
+	}
+	if in.Cooldown != nil {
+		entry, err := cooldownEntry(eco, in.Cooldown)
+		if err != nil {
+			return nil, fmt.Errorf("cooldown: %w", err)
+		}
+		out = append(out, entry)
+	}
+	if in.MinDownloads != nil {
+		entry, err := minDownloadsEntry(eco, in.MinDownloads)
+		if err != nil {
+			return nil, fmt.Errorf("min-downloads: %w", err)
+		}
+		out = append(out, entry)
+	}
+	if in.TrustDowngrade != nil {
+		entry, err := trustDowngradeEntry(eco, in.TrustDowngrade)
+		if err != nil {
+			return nil, fmt.Errorf("trust-downgrade: %w", err)
+		}
+		out = append(out, entry)
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("entry has no policy settings")
 	}
 	return out, nil
 }
 
-func autoID(kind string, idx int) string {
-	return fmt.Sprintf("%s/%d", kind, idx)
+func parsePackageEcosystem(s string) (facts.Ecosystem, error) {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "npm":
+		return facts.EcosystemNPM, nil
+	case "pip", "pypi":
+		return facts.EcosystemPyPI, nil
+	case "bundler", "rubygems":
+		return facts.EcosystemRubyGems, nil
+	case "composer":
+		return facts.EcosystemComposer, nil
+	case "docker":
+		return facts.EcosystemDocker, nil
+	case "brew", "homebrew":
+		return facts.EcosystemHomebrew, nil
+	case "":
+		return "", fmt.Errorf("package-ecosystem is required")
+	default:
+		return "", fmt.Errorf("unsupported package-ecosystem %q", s)
+	}
+}
+
+func ecosystemPatterns(eco facts.Ecosystem, patterns []string) ([]policy.PackagePattern, error) {
+	out := make([]policy.PackagePattern, 0, len(patterns))
+	for _, p := range patterns {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			return nil, fmt.Errorf("package pattern cannot be empty")
+		}
+		out = append(out, policy.PackagePattern{Ecosystem: eco, Pattern: p})
+	}
+	return out, nil
+}
+
+func matchForPatterns(eco facts.Ecosystem, include, exclude []policy.PackagePattern) policy.Match {
+	return policy.Match{
+		Ecosystems:             []facts.Ecosystem{eco},
+		PackagePatterns:        include,
+		ExcludePackagePatterns: exclude,
+	}
+}
+
+func cooldownEntry(eco facts.Ecosystem, in *yamlCooldown) (policy.Entry, error) {
+	if in.SemverMajorDays != nil || in.SemverMinorDays != nil || in.SemverPatchDays != nil {
+		return policy.Entry{}, fmt.Errorf("semver cooldown fields are not supported")
+	}
+	days := in.DefaultDays
+	if days <= 0 {
+		return policy.Entry{}, fmt.Errorf("default-days must be > 0")
+	}
+	include, err := ecosystemPatterns(eco, in.Include)
+	if err != nil {
+		return policy.Entry{}, fmt.Errorf("include: %w", err)
+	}
+	exclude, err := ecosystemPatterns(eco, in.Exclude)
+	if err != nil {
+		return policy.Entry{}, fmt.Errorf("exclude: %w", err)
+	}
+	return policy.Entry{
+		Match: matchForPatterns(eco, include, exclude),
+		Rule:  rules.NewCooldown(ecosystemRuleID(eco, "cooldown"), days),
+	}, nil
+}
+
+func minDownloadsEntry(eco facts.Ecosystem, in *yamlMinDownloads) (policy.Entry, error) {
+	if in.Threshold <= 0 {
+		return policy.Entry{}, fmt.Errorf("threshold must be > 0")
+	}
+	include, err := ecosystemPatterns(eco, in.Include)
+	if err != nil {
+		return policy.Entry{}, fmt.Errorf("include: %w", err)
+	}
+	exclude, err := ecosystemPatterns(eco, in.Exclude)
+	if err != nil {
+		return policy.Entry{}, fmt.Errorf("exclude: %w", err)
+	}
+	return policy.Entry{
+		Match: matchForPatterns(eco, include, exclude),
+		Rule:  rules.NewMinDownloads(ecosystemRuleID(eco, "min-downloads"), in.Threshold),
+	}, nil
+}
+
+func trustDowngradeEntry(eco facts.Ecosystem, in *yamlTrustDowngrade) (policy.Entry, error) {
+	include, err := ecosystemPatterns(eco, in.Include)
+	if err != nil {
+		return policy.Entry{}, fmt.Errorf("include: %w", err)
+	}
+	exclude, err := ecosystemPatterns(eco, in.Exclude)
+	if err != nil {
+		return policy.Entry{}, fmt.Errorf("exclude: %w", err)
+	}
+	watch := make([]rules.TrustDowngradeWatch, 0, len(in.Watch))
+	for _, w := range in.Watch {
+		tw, ok := parseTrustWatch(w)
+		if !ok {
+			return policy.Entry{}, fmt.Errorf("unknown watch field %q", w)
+		}
+		watch = append(watch, tw)
+	}
+	ou, err := parseOnUnknown(in.OnUnknown)
+	if err != nil {
+		return policy.Entry{}, err
+	}
+	return policy.Entry{
+		Match: matchForPatterns(eco, include, exclude),
+		Rule:  rules.NewTrustDowngrade(ecosystemRuleID(eco, "trust-downgrade"), watch, ou),
+	}, nil
+}
+
+func ecosystemRuleID(eco facts.Ecosystem, kind string) string {
+	return fmt.Sprintf("%s/%s", eco, kind)
 }
 
 func parseTrustWatch(s string) (rules.TrustDowngradeWatch, bool) {
@@ -299,5 +305,5 @@ func parseOnUnknown(s string) (rules.OnUnknown, error) {
 	case "ignore":
 		return rules.OnUnknownIgnore, nil
 	}
-	return "", fmt.Errorf("invalid on_unknown: %q", s)
+	return "", fmt.Errorf("invalid on-unknown: %q", s)
 }

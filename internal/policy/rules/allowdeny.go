@@ -16,6 +16,7 @@ type packageKey struct {
 type AllowRule struct {
 	id       string
 	packages map[packageKey]struct{}
+	patterns []policy.PackagePattern
 }
 
 func NewAllow(id string, refs []policy.PackageRef) *AllowRule {
@@ -24,6 +25,10 @@ func NewAllow(id string, refs []policy.PackageRef) *AllowRule {
 		m[packageKey{r.Ecosystem, r.Name}] = struct{}{}
 	}
 	return &AllowRule{id: id, packages: m}
+}
+
+func NewAllowPatterns(id string, patterns []policy.PackagePattern) *AllowRule {
+	return &AllowRule{id: id, packages: map[packageKey]struct{}{}, patterns: patterns}
 }
 
 func (r *AllowRule) ID() string { return r.id }
@@ -38,6 +43,16 @@ func (r *AllowRule) Evaluate(ctx policy.EvalContext) (*policy.Outcome, error) {
 			Detail:   fmt.Sprintf("%s@%s is on the allow list", f.Name, f.Version),
 		}, nil
 	}
+	for _, p := range r.patterns {
+		if p.Ecosystem == f.Ecosystem && policy.MatchPackagePattern(p.Pattern, f.Name) {
+			return &policy.Outcome{
+				Decision: policy.DecisionAllow,
+				RuleID:   r.id,
+				Reason:   "allowlist",
+				Detail:   fmt.Sprintf("%s@%s matches allow pattern %q", f.Name, f.Version, p.Pattern),
+			}, nil
+		}
+	}
 	return nil, nil
 }
 
@@ -45,6 +60,7 @@ func (r *AllowRule) Evaluate(ctx policy.EvalContext) (*policy.Outcome, error) {
 type DenyRule struct {
 	id       string
 	packages map[packageKey]struct{}
+	patterns []policy.PackagePattern
 }
 
 func NewDeny(id string, refs []policy.PackageRef) *DenyRule {
@@ -53,6 +69,10 @@ func NewDeny(id string, refs []policy.PackageRef) *DenyRule {
 		m[packageKey{r.Ecosystem, r.Name}] = struct{}{}
 	}
 	return &DenyRule{id: id, packages: m}
+}
+
+func NewDenyPatterns(id string, patterns []policy.PackagePattern) *DenyRule {
+	return &DenyRule{id: id, packages: map[packageKey]struct{}{}, patterns: patterns}
 }
 
 func (r *DenyRule) ID() string { return r.id }
@@ -66,6 +86,16 @@ func (r *DenyRule) Evaluate(ctx policy.EvalContext) (*policy.Outcome, error) {
 			Reason:   "denylist",
 			Detail:   fmt.Sprintf("%s@%s is on the deny list", f.Name, f.Version),
 		}, nil
+	}
+	for _, p := range r.patterns {
+		if p.Ecosystem == f.Ecosystem && policy.MatchPackagePattern(p.Pattern, f.Name) {
+			return &policy.Outcome{
+				Decision: policy.DecisionBlock,
+				RuleID:   r.id,
+				Reason:   "denylist",
+				Detail:   fmt.Sprintf("%s@%s matches deny pattern %q", f.Name, f.Version, p.Pattern),
+			}, nil
+		}
 	}
 	return nil, nil
 }

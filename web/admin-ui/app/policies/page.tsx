@@ -86,7 +86,10 @@ export default function PoliciesPage() {
                     </td>
                     <td className="px-6 py-3">
                       <div className="flex flex-wrap gap-1">
-                        {(r.packages ?? []).map((p) => (
+                        {[
+                          ...(r.packages ?? []),
+                          ...(r.packagePatterns ?? []),
+                        ].map((p) => (
                           <span
                             key={p}
                             className="rounded bg-gray-100 px-2 py-0.5 text-xs font-mono text-gray-700"
@@ -94,9 +97,19 @@ export default function PoliciesPage() {
                             {p}
                           </span>
                         ))}
-                        {(r.packages ?? []).length === 0 && (
-                          <span className="text-gray-400 text-xs">all</span>
-                        )}
+                        {(r.excludePackagePatterns ?? []).map((p) => (
+                          <span
+                            key={`exclude-${p}`}
+                            className="rounded bg-red-50 px-2 py-0.5 text-xs font-mono text-red-700"
+                          >
+                            exclude {p}
+                          </span>
+                        ))}
+                        {(r.packages ?? []).length === 0 &&
+                          (r.packagePatterns ?? []).length === 0 &&
+                          (r.excludePackagePatterns ?? []).length === 0 && (
+                            <span className="text-gray-400 text-xs">all</span>
+                          )}
                       </div>
                     </td>
                   </tr>
