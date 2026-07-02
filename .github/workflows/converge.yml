@@ -1,0 +1,22 @@
+# Automated dependency updates via Converge (https://github.com/Pirikara/Converge)
+name: Converge
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # every Monday 06:00 UTC
+  workflow_dispatch: {} # run on demand from the Actions tab
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  converge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: Pirikara/Converge@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          apply: "true"
+          types: "minor,patch"
+          limit: "10"
