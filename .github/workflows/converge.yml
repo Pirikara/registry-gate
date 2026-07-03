@@ -3,7 +3,7 @@ name: Converge
 
 on:
   schedule:
-    - cron: "0 6 * * 1" # every Monday 06:00 UTC
+    - cron: "0 7 * * *" # daily 07:00 UTC (routine gated by converge.json)
   workflow_dispatch: {} # run on demand from the Actions tab
 
 permissions:
@@ -14,6 +14,9 @@ jobs:
   converge:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/setup-go@v5 # Go resolution for go.mod (security + routine)
+        with:
+          go-version: "stable"
       - uses: Pirikara/Converge@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
